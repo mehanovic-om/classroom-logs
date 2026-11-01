@@ -1,0 +1,1031 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="color-scheme" content="light dark" />
+    <!-- Empty inline icon: stops the browser fetching /favicon.ico, which
+         lives outside the artifact's routes and 404s. -->
+    <link rel="icon" href="data:," />
+    <title>Late Log Standalone</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        --bg: #f2f3ef;
+        --surface: #ffffff;
+        --surface-2: #e9ebe4;
+        --ink: #1d242e;
+        --muted: #5d6874;
+        --line: #d5d9d0;
+        --accent: #175e4c;
+        --accent-ink: #ffffff;
+        --accent-soft: #dcefe6;
+        --warn-bg: #fdecec;
+        --warn-line: #e5a3a3;
+        --warn-ink: #9c1c1c;
+        --amber-bg: #fdf3e0;
+        --amber-line: #e3c98f;
+        --amber-ink: #7c5410;
+        --paper: #fffef9;
+        --shadow: 0 1px 3px rgba(20, 28, 22, 0.10), 0 6px 18px rgba(20, 28, 22, 0.06);
+        --radius: 14px;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #13171c;
+          --surface: #1d232b;
+          --surface-2: #262d37;
+          --ink: #edf1f5;
+          --muted: #9ba7b4;
+          --line: #343d49;
+          --accent: #2e9e77;
+          --accent-ink: #0c1a14;
+          --accent-soft: #1d332a;
+          --warn-bg: #3d2020;
+          --warn-line: #7c3f3f;
+          --warn-ink: #f3a8a8;
+          --amber-bg: #3a2f1a;
+          --amber-line: #6f5a2c;
+          --amber-ink: #e8c87e;
+          --paper: #fdfdf8;
+          --shadow: 0 1px 3px rgba(0,0,0,0.4), 0 6px 18px rgba(0,0,0,0.3);
+        }
+      }
+      * { box-sizing: border-box; }
+      html { -webkit-text-size-adjust: 100%; }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--ink);
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        font-size: 16px;
+        line-height: 1.45;
+      }
+      button { font: inherit; cursor: pointer; }
+      button:disabled { cursor: not-allowed; opacity: 0.5; }
+
+      .wrap { max-width: 1180px; margin: 0 auto; padding: 18px 16px 48px; }
+
+      /* ---------- Top bar ---------- */
+      .topbar {
+        display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between;
+        margin-bottom: 18px;
+      }
+      .title-block h1 {
+        margin: 0; font-size: 26px; font-weight: 800; letter-spacing: -0.01em;
+      }
+      .title-block p { margin: 2px 0 0; color: var(--muted); font-size: 14px; }
+      .btn {
+        border: 1px solid var(--line); background: var(--surface); color: var(--ink);
+        border-radius: 10px; padding: 10px 16px; font-weight: 600; min-height: 44px;
+      }
+      .btn:active { transform: translateY(1px); }
+      .btn-primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+      .btn-danger { background: var(--warn-bg); border-color: var(--warn-line); color: var(--warn-ink); }
+      .btn-quiet { background: transparent; }
+
+      /* ---------- Date bar ---------- */
+      .datebar {
+        display: flex; flex-wrap: wrap; gap: 10px; align-items: center;
+        background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius);
+        padding: 10px 12px; box-shadow: var(--shadow); margin-bottom: 18px;
+      }
+      .datebar .nav-btn { padding: 8px 14px; min-height: 40px; }
+      .date-label { font-size: 18px; font-weight: 700; margin-right: auto; }
+      .date-label .today-tag {
+        font-size: 12px; font-weight: 700; color: var(--accent); background: var(--accent-soft);
+        border-radius: 999px; padding: 2px 9px; margin-left: 8px; vertical-align: 2px;
+      }
+      .datebar input[type="date"] {
+        font: inherit; color: var(--ink); background: var(--surface-2);
+        border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; min-height: 40px;
+      }
+      .past-banner {
+        display: none; width: 100%; background: var(--amber-bg); border: 1px solid var(--amber-line);
+        color: var(--amber-ink); border-radius: 8px; padding: 8px 12px; font-size: 14px; font-weight: 600;
+      }
+      .past-banner.show { display: block; }
+
+      /* ---------- Layout ---------- */
+      .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; align-items: start; }
+      @media (max-width: 860px) { .grid { grid-template-columns: 1fr; } }
+      @media (min-width: 861px) {
+        .grid { grid-template-columns: 2fr 3fr; }
+        .sign-col { grid-column: 2; }
+        .board-col { grid-column: 1; }
+      }
+      .card {
+        background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius);
+        box-shadow: var(--shadow); padding: 18px; margin-bottom: 18px;
+      }
+      .card h2 { margin: 0 0 4px; font-size: 19px; font-weight: 800; }
+      .card .sub { margin: 0 0 14px; color: var(--muted); font-size: 14px; }
+      .count-badge {
+        display: inline-block; min-width: 26px; text-align: center; font-size: 13px; font-weight: 800;
+        background: var(--accent-soft); color: var(--accent); border-radius: 999px; padding: 2px 8px;
+        margin-left: 8px; vertical-align: 2px;
+      }
+
+      /* ---------- Signature pad ---------- */
+      .pad-shell {
+        position: relative; background: var(--paper); border: 2px solid var(--line);
+        border-radius: 10px; overflow: hidden;
+      }
+      .pad-shell canvas { display: block; width: 100%; height: 280px; touch-action: none; }
+      .pad-line {
+        position: absolute; left: 18px; right: 18px; bottom: 54px; border-bottom: 2px solid #b9beb2;
+        pointer-events: none;
+      }
+      .pad-x {
+        position: absolute; left: 20px; bottom: 58px; font-size: 20px; color: #8a9084;
+        pointer-events: none; font-weight: 600;
+      }
+      .pad-hint {
+        position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+        color: #9aa091; font-size: 17px; pointer-events: none; padding-bottom: 34px;
+      }
+      .pad-hint.hidden { display: none; }
+      .pad-foot {
+        display: flex; justify-content: space-between; align-items: center; margin-top: 8px;
+      }
+      .pad-foot .hint-text { color: var(--muted); font-size: 13px; }
+
+      /* ---------- Period picker & reason ---------- */
+      .field-label { font-weight: 700; margin: 18px 0 8px; font-size: 15px; }
+      .periods { display: flex; gap: 8px; flex-wrap: wrap; }
+      .period-btn {
+        flex: 1 1 56px; min-height: 56px; font-size: 21px; font-weight: 800;
+        border: 2px solid var(--line); border-radius: 12px; background: var(--surface); color: var(--ink);
+      }
+      .period-btn.selected { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
+      .reason-input {
+        width: 100%; font: inherit; color: var(--ink); background: var(--surface);
+        border: 2px solid var(--line); border-radius: 12px; padding: 13px 14px; min-height: 54px;
+      }
+      .reason-input:focus { outline: none; border-color: var(--accent); }
+      .reason-chips { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+      .chip {
+        border: 1px solid var(--line); background: var(--surface-2); color: var(--ink);
+        border-radius: 999px; padding: 8px 14px; font-size: 14px; font-weight: 600; min-height: 40px;
+      }
+      .chip.selected { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
+
+      .station-actions { display: flex; gap: 10px; margin-top: 20px; flex-wrap: wrap; }
+      .station-actions .btn { flex: 1 1 160px; min-height: 56px; font-size: 17px; font-weight: 800; border-radius: 12px; }
+      .form-error { display: none; margin-top: 12px; color: var(--warn-ink); font-weight: 600; font-size: 14px; }
+      .form-error.show { display: block; }
+
+      /* ---------- Late entries ---------- */
+      .log-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
+      .period-summary { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
+      .period-summary .p-chip {
+        font-size: 13px; font-weight: 700; background: var(--surface-2); border: 1px solid var(--line);
+        border-radius: 999px; padding: 4px 12px; color: var(--muted);
+      }
+      .period-summary .p-chip strong { color: var(--ink); }
+      .entry-card {
+        display: flex; gap: 12px; align-items: flex-start;
+        border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; margin-bottom: 10px;
+        background: var(--surface);
+      }
+      .sig-box {
+        background: var(--paper); border: 1px solid var(--line); border-radius: 8px;
+        padding: 4px 8px; flex: 0 0 auto; max-width: 200px;
+      }
+      .sig-box img { display: block; max-width: 184px; height: 44px; object-fit: contain; object-position: left center; }
+      .entry-info { flex: 1 1 auto; min-width: 0; }
+      .entry-top { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+      .entry-top .period-tag { font-weight: 800; font-size: 15px; }
+      .entry-top .in-time { font-weight: 700; font-variant-numeric: tabular-nums; }
+      .entry-reason { color: var(--muted); font-size: 14px; margin-top: 2px; overflow-wrap: break-word; }
+      .icon-btn {
+        border: 1px solid var(--line); background: var(--surface); color: var(--warn-ink);
+        border-radius: 8px; width: 40px; height: 40px; font-size: 17px; line-height: 1; flex: 0 0 auto;
+      }
+      .empty-note { color: var(--muted); font-size: 15px; padding: 10px 2px; }
+      .storage-note { font-size: 13px; color: var(--muted); margin-top: 14px; }
+
+      /* ---------- Modals ---------- */
+      .overlay {
+        position: fixed; inset: 0; background: rgba(10, 14, 12, 0.55);
+        display: none; align-items: center; justify-content: center; padding: 18px; z-index: 50;
+      }
+      .overlay.show { display: flex; }
+      .dialog {
+        background: var(--surface); color: var(--ink); border-radius: 16px; padding: 22px;
+        max-width: 460px; width: 100%; box-shadow: var(--shadow); max-height: 88vh; overflow-y: auto;
+      }
+      .dialog h3 { margin: 0 0 8px; font-size: 20px; font-weight: 800; }
+      .dialog p { margin: 0 0 14px; color: var(--muted); }
+      .dialog .sig-box { margin-bottom: 14px; }
+      .dialog-actions { display: flex; flex-direction: column; gap: 8px; margin-top: 6px; }
+      .dialog-actions .btn { min-height: 52px; font-weight: 700; width: 100%; }
+
+      .toast {
+        position: fixed; left: 50%; bottom: 22px; transform: translateX(-50%) translateY(20px);
+        background: var(--ink); color: var(--bg); padding: 12px 20px; border-radius: 999px;
+        font-weight: 700; opacity: 0; pointer-events: none; transition: opacity 0.2s ease, transform 0.2s ease; z-index: 60;
+        max-width: calc(100vw - 32px); text-align: center;
+      }
+      .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+      @media (prefers-reduced-motion: reduce) {
+        .toast { transition: none; }
+        .btn:active { transform: none; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <div class="topbar">
+        <div class="title-block">
+          <h1>Late Log</h1>
+          <p>Abraham Lincoln HS &middot; Mr. Mehanovic</p>
+        </div>
+      </div>
+
+      <div class="datebar">
+        <button class="btn nav-btn" id="prevDayBtn" type="button" aria-label="Previous day">&#8592; Prev</button>
+        <div class="date-label"><span id="dateLabel">Today</span><span class="today-tag" id="todayTag">Today</span></div>
+        <input type="date" id="datePicker" aria-label="Pick a day" />
+        <button class="btn nav-btn" id="todayBtn" type="button">Today</button>
+        <button class="btn nav-btn" id="nextDayBtn" type="button" aria-label="Next day">Next &#8594;</button>
+        <div class="past-banner" id="pastBanner">You are viewing another day. Signing in is only open for today &mdash; tap Today to go back.</div>
+      </div>
+
+      <div class="grid">
+        <div class="sign-col">
+          <section class="card" aria-label="Late sign in station">
+            <h2>Sign in late</h2>
+            <p class="sub">Sign your name, pick your period, and say why you&rsquo;re late. The time in is stamped for you.</p>
+
+            <div class="pad-shell">
+              <canvas id="sigPad"></canvas>
+              <div class="pad-x">X</div>
+              <div class="pad-line"></div>
+              <div class="pad-hint" id="padHint">Sign here with the Pencil</div>
+            </div>
+            <div class="pad-foot">
+              <span class="hint-text">Finger or mouse work too. Pressure changes the line, just like ink.</span>
+              <button class="btn btn-quiet" id="clearPadBtn" type="button">Clear</button>
+            </div>
+
+            <div class="field-label" id="periodLabel">Your period</div>
+            <div class="periods" id="periodPicker" role="group" aria-labelledby="periodLabel"></div>
+
+            <div class="field-label" id="reasonLabel">Reason for being late</div>
+            <input class="reason-input" id="reasonInput" type="text" autocomplete="off"
+                   placeholder="Bus, train, appointment&hellip;" aria-labelledby="reasonLabel" maxlength="120" />
+            <div class="reason-chips" id="reasonChips" role="group" aria-label="Common reasons"></div>
+
+            <div class="station-actions">
+              <button class="btn btn-primary" id="signInBtn" type="button">Sign in</button>
+            </div>
+            <div class="form-error" id="formError" role="alert"></div>
+          </section>
+        </div>
+
+        <div class="board-col">
+          <section class="card" aria-label="Late log for the day">
+            <h2 id="logHeading">Today&rsquo;s late log<span class="count-badge" id="lateCount">0</span></h2>
+            <p class="sub">Everyone who signed in late on the day you are viewing, newest first.</p>
+            <div class="log-actions">
+              <button class="btn" id="exportBtn" type="button">Export Excel</button>
+              <button class="btn btn-danger" id="clearDayBtn" type="button">Clear this day</button>
+            </div>
+            <div class="period-summary" id="periodSummary"></div>
+            <div id="logBody"></div>
+            <p class="storage-note">Everything on this page is stored on this device only, in this browser. Nothing is sent anywhere, and the log keeps working with no connection. Clearing the browser&rsquo;s site data would erase the log, so export the Excel file when you want a copy.</p>
+          </section>
+        </div>
+      </div>
+    </div>
+
+    <!-- Confirm dialog -->
+    <div class="overlay" id="confirmOverlay" role="dialog" aria-modal="true" aria-labelledby="confirmTitle">
+      <div class="dialog">
+        <h3 id="confirmTitle">Are you sure?</h3>
+        <p id="confirmText"></p>
+        <div class="sig-box" id="confirmSigBox" style="display:none"><img id="confirmSig" alt="Signature on this entry" /></div>
+        <div class="dialog-actions">
+          <button class="btn btn-danger" id="confirmYesBtn" type="button">Yes, do it</button>
+          <button class="btn btn-quiet" id="confirmNoBtn" type="button">Cancel</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="toast" id="toast" role="status"></div>
+
+    <script>
+      (function () {
+        "use strict";
+
+        var LS_KEY = "late-log-standalone-v1";
+        var PERIODS = [2, 3, 6, 7, 8];
+        var REASON_PRESETS = ["Bus was late", "Train delay", "Overslept", "Doctor / dentist", "Family reason"];
+
+        /* ---------------- State ---------------- */
+        function defaultState() {
+          return { entries: [] }; /* {id, date, period, sig, inAt, reason} */
+        }
+        var state = defaultState();
+        try {
+          var raw = localStorage.getItem(LS_KEY);
+          if (raw) {
+            var parsed = JSON.parse(raw);
+            if (parsed && Array.isArray(parsed.entries)) state = parsed;
+          }
+        } catch (e) { /* storage unavailable: run in memory for this session */ }
+
+        var storageOk = true;
+        function save() {
+          try {
+            localStorage.setItem(LS_KEY, JSON.stringify(state));
+          } catch (e) {
+            if (storageOk) {
+              storageOk = false;
+              showToast("This browser would not save. The log will last for this session only.");
+            }
+          }
+        }
+
+        /* ---------------- Dates & times ---------------- */
+        function pad2(n) { return (n < 10 ? "0" : "") + n; }
+        function dateKey(d) { return d.getFullYear() + "-" + pad2(d.getMonth() + 1) + "-" + pad2(d.getDate()); }
+        function todayKey() { return dateKey(new Date()); }
+        function parseKey(key) {
+          var p = key.split("-");
+          return new Date(parseInt(p[0], 10), parseInt(p[1], 10) - 1, parseInt(p[2], 10));
+        }
+        function shiftKey(key, days) {
+          var d = parseKey(key);
+          d.setDate(d.getDate() + days);
+          return dateKey(d);
+        }
+        function fmtDateLabel(key) {
+          return parseKey(key).toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric", year: "numeric" });
+        }
+        function fmtTime(ts) {
+          return new Date(ts).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+        }
+        function uid() {
+          return Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 9);
+        }
+
+        var viewDate = todayKey();
+        function isViewingToday() { return viewDate === todayKey(); }
+
+        /* ---------------- Element refs ---------------- */
+        function $(id) { return document.getElementById(id); }
+        var els = {
+          dateLabel: $("dateLabel"), todayTag: $("todayTag"), datePicker: $("datePicker"),
+          pastBanner: $("pastBanner"), periodPicker: $("periodPicker"),
+          reasonInput: $("reasonInput"), reasonChips: $("reasonChips"),
+          signInBtn: $("signInBtn"), formError: $("formError"),
+          logHeading: $("logHeading"), lateCount: $("lateCount"),
+          periodSummary: $("periodSummary"), logBody: $("logBody"),
+          padHint: $("padHint"), toast: $("toast"),
+          confirmOverlay: $("confirmOverlay"), confirmSigBox: $("confirmSigBox"), confirmSig: $("confirmSig")
+        };
+
+        var toastTimer = null;
+        function showToast(msg) {
+          els.toast.textContent = msg;
+          els.toast.classList.add("show");
+          if (toastTimer) clearTimeout(toastTimer);
+          toastTimer = setTimeout(function () { els.toast.classList.remove("show"); }, 2600);
+        }
+
+        /* ---------------- Data helpers ---------------- */
+        function dayEntries(key) {
+          return state.entries.filter(function (e) { return e.date === key; });
+        }
+
+        /* ---------------- Period picker ---------------- */
+        var selectedPeriod = null;
+        PERIODS.forEach(function (p) {
+          var b = document.createElement("button");
+          b.type = "button";
+          b.className = "period-btn";
+          b.textContent = String(p);
+          b.setAttribute("aria-pressed", "false");
+          b.addEventListener("click", function () {
+            selectedPeriod = p;
+            var btns = els.periodPicker.querySelectorAll(".period-btn");
+            for (var i = 0; i < btns.length; i++) {
+              var on = btns[i].textContent === String(p);
+              btns[i].classList.toggle("selected", on);
+              btns[i].setAttribute("aria-pressed", on ? "true" : "false");
+            }
+            hideError();
+          });
+          els.periodPicker.appendChild(b);
+        });
+
+        /* ---------------- Reason chips ---------------- */
+        REASON_PRESETS.forEach(function (r) {
+          var b = document.createElement("button");
+          b.type = "button";
+          b.className = "chip";
+          b.textContent = r;
+          b.addEventListener("click", function () {
+            els.reasonInput.value = r;
+            markChip(r);
+            hideError();
+          });
+          els.reasonChips.appendChild(b);
+        });
+        function markChip(value) {
+          var chips = els.reasonChips.querySelectorAll(".chip");
+          for (var i = 0; i < chips.length; i++) {
+            chips[i].classList.toggle("selected", chips[i].textContent === value);
+          }
+        }
+        els.reasonInput.addEventListener("input", function () {
+          markChip(els.reasonInput.value.trim());
+          hideError();
+        });
+
+        /* ---------------- Signature pad ---------------- */
+        var canvas = $("sigPad");
+        var ctx = canvas.getContext("2d");
+        var hasInk = false;
+        var drawing = false;
+        var lastPoint = null;
+
+        function sizeCanvas() {
+          var rect = canvas.getBoundingClientRect();
+          var dpr = Math.min(window.devicePixelRatio || 1, 2);
+          canvas.width = Math.round(rect.width * dpr);
+          canvas.height = Math.round(rect.height * dpr);
+          ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+          ctx.lineCap = "round";
+          ctx.lineJoin = "round";
+          ctx.strokeStyle = "#1c2a4a";
+        }
+        sizeCanvas();
+
+        function padPoint(e) {
+          var rect = canvas.getBoundingClientRect();
+          return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+        }
+        canvas.addEventListener("pointerdown", function (e) {
+          if (!isViewingToday()) return;
+          e.preventDefault();
+          canvas.setPointerCapture(e.pointerId);
+          drawing = true;
+          lastPoint = padPoint(e);
+        });
+        canvas.addEventListener("pointermove", function (e) {
+          if (!drawing || !lastPoint) return;
+          e.preventDefault();
+          var pt = padPoint(e);
+          var pressure = (typeof e.pressure === "number" && e.pressure > 0) ? e.pressure : 0.5;
+          ctx.lineWidth = 1.1 + pressure * 3.2;
+          ctx.beginPath();
+          ctx.moveTo(lastPoint.x, lastPoint.y);
+          ctx.lineTo(pt.x, pt.y);
+          ctx.stroke();
+          lastPoint = pt;
+          if (!hasInk) {
+            hasInk = true;
+            els.padHint.classList.add("hidden");
+          }
+        });
+        function endStroke() { drawing = false; lastPoint = null; }
+        canvas.addEventListener("pointerup", endStroke);
+        canvas.addEventListener("pointercancel", endStroke);
+
+        function clearPad() {
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          hasInk = false;
+          els.padHint.classList.remove("hidden");
+        }
+        $("clearPadBtn").addEventListener("click", clearPad);
+
+        /* Downscale the signature before storing so the log stays small. */
+        function signatureDataURL() {
+          var targetW = 480;
+          var scale = Math.min(1, targetW / canvas.width);
+          var off = document.createElement("canvas");
+          off.width = Math.round(canvas.width * scale);
+          off.height = Math.round(canvas.height * scale);
+          var octx = off.getContext("2d");
+          octx.fillStyle = "#fffef9";
+          octx.fillRect(0, 0, off.width, off.height);
+          octx.drawImage(canvas, 0, 0, off.width, off.height);
+          return off.toDataURL("image/png");
+        }
+
+        /* ---------------- Sign in ---------------- */
+        function showError(msg) {
+          els.formError.textContent = msg;
+          els.formError.classList.add("show");
+        }
+        function hideError() { els.formError.classList.remove("show"); }
+
+        function resetStation() {
+          clearPad();
+          selectedPeriod = null;
+          var btns = els.periodPicker.querySelectorAll(".period-btn");
+          for (var i = 0; i < btns.length; i++) {
+            btns[i].classList.remove("selected");
+            btns[i].setAttribute("aria-pressed", "false");
+          }
+          els.reasonInput.value = "";
+          markChip("");
+          hideError();
+        }
+
+        els.signInBtn.addEventListener("click", function () {
+          if (!isViewingToday()) { showError("You are viewing another day. Tap Today to sign in."); return; }
+          if (!hasInk) { showError("Sign your name first."); return; }
+          if (!selectedPeriod) { showError("Pick your period."); return; }
+          var reason = els.reasonInput.value.trim();
+          if (!reason) { showError("Add a reason for being late."); els.reasonInput.focus(); return; }
+          hideError();
+          var now = Date.now();
+          var periodUsed = selectedPeriod;
+          state.entries.push({
+            id: uid(), date: todayKey(), period: periodUsed,
+            sig: signatureDataURL(), inAt: now, reason: reason
+          });
+          save();
+          resetStation();
+          renderAll();
+          showToast("Signed in late — Period " + periodUsed + ", " + fmtTime(now) + ".");
+        });
+        els.reasonInput.addEventListener("keydown", function (e) {
+          if (e.key === "Enter") { e.preventDefault(); els.signInBtn.click(); }
+        });
+
+        /* ---------------- Confirm dialog ---------------- */
+        var confirmAction = null;
+        function askConfirm(title, text, yesLabel, sigSrc, action) {
+          $("confirmTitle").textContent = title;
+          $("confirmText").textContent = text;
+          $("confirmYesBtn").textContent = yesLabel;
+          if (sigSrc) {
+            els.confirmSig.src = sigSrc;
+            els.confirmSigBox.style.display = "";
+          } else {
+            els.confirmSigBox.style.display = "none";
+          }
+          confirmAction = action;
+          els.confirmOverlay.classList.add("show");
+        }
+        $("confirmYesBtn").addEventListener("click", function () {
+          els.confirmOverlay.classList.remove("show");
+          if (confirmAction) confirmAction();
+          confirmAction = null;
+        });
+        $("confirmNoBtn").addEventListener("click", function () {
+          els.confirmOverlay.classList.remove("show");
+          confirmAction = null;
+        });
+
+        /* ---------------- Rendering ---------------- */
+        function sigBox(src, alt) {
+          var box = document.createElement("div");
+          box.className = "sig-box";
+          var img = document.createElement("img");
+          img.src = src;
+          img.alt = alt || "Student signature";
+          box.appendChild(img);
+          return box;
+        }
+
+        function renderLog() {
+          var entries = dayEntries(viewDate).slice().sort(function (a, b) { return b.inAt - a.inAt; });
+          els.lateCount.textContent = String(entries.length);
+          els.logHeading.firstChild.textContent = isViewingToday() ? "Today's late log" : "Late log — " + fmtDateLabel(viewDate);
+
+          /* Per-period counts */
+          els.periodSummary.innerHTML = "";
+          PERIODS.forEach(function (p) {
+            var n = entries.filter(function (e) { return e.period === p; }).length;
+            if (n === 0) return;
+            var chip = document.createElement("span");
+            chip.className = "p-chip";
+            var strong = document.createElement("strong");
+            strong.textContent = "Period " + p + ": ";
+            chip.appendChild(strong);
+            chip.appendChild(document.createTextNode(n + (n === 1 ? " late" : " late")));
+            els.periodSummary.appendChild(chip);
+          });
+
+          els.logBody.innerHTML = "";
+          if (entries.length === 0) {
+            var empty = document.createElement("div");
+            empty.className = "empty-note";
+            empty.textContent = "Nobody has signed in late for this day yet.";
+            els.logBody.appendChild(empty);
+            return;
+          }
+          entries.forEach(function (e) {
+            var card = document.createElement("div");
+            card.className = "entry-card";
+            card.appendChild(sigBox(e.sig));
+
+            var info = document.createElement("div");
+            info.className = "entry-info";
+            var top = document.createElement("div");
+            top.className = "entry-top";
+            var per = document.createElement("span");
+            per.className = "period-tag";
+            per.textContent = "Period " + e.period;
+            var time = document.createElement("span");
+            time.className = "in-time";
+            time.textContent = "In at " + fmtTime(e.inAt);
+            top.appendChild(per);
+            top.appendChild(time);
+            info.appendChild(top);
+            var reason = document.createElement("div");
+            reason.className = "entry-reason";
+            reason.textContent = e.reason;
+            info.appendChild(reason);
+            card.appendChild(info);
+
+            var del = document.createElement("button");
+            del.type = "button";
+            del.className = "icon-btn";
+            del.textContent = "×";
+            del.setAttribute("aria-label", "Delete this late entry");
+            del.addEventListener("click", function () {
+              askConfirm(
+                "Delete this entry?",
+                "Period " + e.period + ", in at " + fmtTime(e.inAt) + " — " + e.reason + ". This removes the entry and its signature from the log. There is no undo.",
+                "Yes, delete it",
+                e.sig,
+                function () {
+                  state.entries = state.entries.filter(function (x) { return x.id !== e.id; });
+                  save();
+                  renderAll();
+                  showToast("Entry deleted.");
+                }
+              );
+            });
+            card.appendChild(del);
+
+            els.logBody.appendChild(card);
+          });
+        }
+
+        function renderStation() {
+          els.signInBtn.disabled = !isViewingToday();
+        }
+
+        function renderDateBar() {
+          els.dateLabel.textContent = fmtDateLabel(viewDate);
+          els.todayTag.style.display = isViewingToday() ? "" : "none";
+          els.datePicker.value = viewDate;
+          els.pastBanner.classList.toggle("show", !isViewingToday());
+          $("nextDayBtn").disabled = isViewingToday();
+        }
+
+        function renderAll() {
+          renderDateBar();
+          renderStation();
+          renderLog();
+        }
+
+        /* ---------------- Date navigation ---------------- */
+        function goTo(key) {
+          viewDate = key;
+          resetStation();
+          renderAll();
+        }
+        $("prevDayBtn").addEventListener("click", function () { goTo(shiftKey(viewDate, -1)); });
+        $("nextDayBtn").addEventListener("click", function () {
+          var next = shiftKey(viewDate, 1);
+          if (next <= todayKey()) goTo(next);
+        });
+        $("todayBtn").addEventListener("click", function () { goTo(todayKey()); });
+        els.datePicker.addEventListener("change", function () {
+          if (els.datePicker.value && els.datePicker.value <= todayKey()) {
+            goTo(els.datePicker.value);
+          } else {
+            renderDateBar();
+          }
+        });
+
+        /* ---------------- Clear day ---------------- */
+        $("clearDayBtn").addEventListener("click", function () {
+          var entries = dayEntries(viewDate);
+          if (entries.length === 0) {
+            showToast("This day is already empty.");
+            return;
+          }
+          askConfirm(
+            "Clear this day?",
+            "This deletes all " + entries.length + (entries.length === 1 ? " late entry" : " late entries") +
+              " for " + fmtDateLabel(viewDate) + ", including the signatures. Export the Excel file first if you need a copy. There is no undo.",
+            "Yes, clear the day",
+            null,
+            function () {
+              state.entries = state.entries.filter(function (e) { return e.date !== viewDate; });
+              save();
+              renderAll();
+              showToast("Day cleared.");
+            }
+          );
+        });
+
+        /* ================================================================
+           Excel export — a real .xlsx built entirely on this device.
+           One worksheet per period; the Name cell holds the student's
+           signature image. Columns: Name | Time In | Reason.
+           No library and no network: the file is a zip of XML parts,
+           assembled below with stored (uncompressed) entries.
+           ================================================================ */
+        function xmlEscape(s) {
+          return String(s)
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;");
+        }
+        function utf8Bytes(str) {
+          return new TextEncoder().encode(str);
+        }
+        function dataURLBytes(dataURL) {
+          var b64 = dataURL.slice(dataURL.indexOf(",") + 1);
+          var bin = atob(b64);
+          var bytes = new Uint8Array(bin.length);
+          for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+          return bytes;
+        }
+        function loadImageSize(src) {
+          return new Promise(function (resolve) {
+            var img = new Image();
+            img.onload = function () { resolve({ w: img.naturalWidth || 480, h: img.naturalHeight || 190 }); };
+            img.onerror = function () { resolve(null); };
+            img.src = src;
+          });
+        }
+
+        /* --- CRC-32 + stored zip writer --- */
+        var CRC_TABLE = null;
+        function crc32(bytes) {
+          if (!CRC_TABLE) {
+            CRC_TABLE = [];
+            for (var n = 0; n < 256; n++) {
+              var c = n;
+              for (var k = 0; k < 8; k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+              CRC_TABLE[n] = c >>> 0;
+            }
+          }
+          var crc = 0xFFFFFFFF;
+          for (var i = 0; i < bytes.length; i++) {
+            crc = CRC_TABLE[(crc ^ bytes[i]) & 0xFF] ^ (crc >>> 8);
+          }
+          return (crc ^ 0xFFFFFFFF) >>> 0;
+        }
+        function zipStore(files) {
+          /* files: [{name, data:Uint8Array}] -> Blob (zip, stored entries) */
+          var chunks = [];
+          var central = [];
+          var offset = 0;
+          var now = new Date();
+          var dosTime = (now.getHours() << 11) | (now.getMinutes() << 5) | Math.floor(now.getSeconds() / 2);
+          var dosDate = ((now.getFullYear() - 1980) << 9) | ((now.getMonth() + 1) << 5) | now.getDate();
+          files.forEach(function (f) {
+            var nameBytes = utf8Bytes(f.name);
+            var crc = crc32(f.data);
+            var header = new DataView(new ArrayBuffer(30));
+            header.setUint32(0, 0x04034b50, true);
+            header.setUint16(4, 20, true);
+            header.setUint16(6, 0x0800, true); /* UTF-8 names */
+            header.setUint16(8, 0, true);      /* stored */
+            header.setUint16(10, dosTime, true);
+            header.setUint16(12, dosDate, true);
+            header.setUint32(14, crc, true);
+            header.setUint32(18, f.data.length, true);
+            header.setUint32(22, f.data.length, true);
+            header.setUint16(26, nameBytes.length, true);
+            header.setUint16(28, 0, true);
+            chunks.push(new Uint8Array(header.buffer), nameBytes, f.data);
+
+            var cen = new DataView(new ArrayBuffer(46));
+            cen.setUint32(0, 0x02014b50, true);
+            cen.setUint16(4, 20, true);
+            cen.setUint16(6, 20, true);
+            cen.setUint16(8, 0x0800, true);
+            cen.setUint16(10, 0, true);
+            cen.setUint16(12, dosTime, true);
+            cen.setUint16(14, dosDate, true);
+            cen.setUint32(16, crc, true);
+            cen.setUint32(20, f.data.length, true);
+            cen.setUint32(24, f.data.length, true);
+            cen.setUint16(28, nameBytes.length, true);
+            cen.setUint32(42, offset, true);
+            central.push(new Uint8Array(cen.buffer), nameBytes);
+
+            offset += 30 + nameBytes.length + f.data.length;
+          });
+          var centralSize = 0;
+          central.forEach(function (c) { centralSize += c.length; });
+          var end = new DataView(new ArrayBuffer(22));
+          end.setUint32(0, 0x06054b50, true);
+          end.setUint16(8, files.length, true);
+          end.setUint16(10, files.length, true);
+          end.setUint32(12, centralSize, true);
+          end.setUint32(16, offset, true);
+          var parts = chunks.concat(central);
+          parts.push(new Uint8Array(end.buffer));
+          return new Blob(parts, { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+        }
+
+        var PX_EMU = 9525; /* EMU per CSS pixel */
+        function buildWorkbook(dayKey, groups) {
+          /* groups: [{period, rows:[{sigBytes, w, h, timeIn, reason}]}] */
+          return Promise.all(groups.map(function (g) {
+            return Promise.all(g.rows.map(function (r) { return loadImageSize(r.sigSrc); }));
+          })).then(function (allSizes) {
+            var files = [];
+            var mediaCount = 0;
+
+            var contentTypes =
+              '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+              '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">' +
+              '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>' +
+              '<Default Extension="xml" ContentType="application/xml"/>' +
+              '<Default Extension="png" ContentType="image/png"/>' +
+              '<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>' +
+              '<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>';
+            groups.forEach(function (g, i) {
+              contentTypes += '<Override PartName="/xl/worksheets/sheet' + (i + 1) + '.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>';
+              contentTypes += '<Override PartName="/xl/drawings/drawing' + (i + 1) + '.xml" ContentType="application/vnd.openxmlformats-officedocument.drawing+xml"/>';
+            });
+            contentTypes += "</Types>";
+            files.push({ name: "[Content_Types].xml", data: utf8Bytes(contentTypes) });
+
+            files.push({
+              name: "_rels/.rels",
+              data: utf8Bytes(
+                '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+                '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+                '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>' +
+                "</Relationships>"
+              )
+            });
+
+            var sheetsXml = "";
+            var wbRels = "";
+            groups.forEach(function (g, i) {
+              sheetsXml += '<sheet name="Period ' + g.period + '" sheetId="' + (i + 1) + '" r:id="rId' + (i + 1) + '"/>';
+              wbRels += '<Relationship Id="rId' + (i + 1) + '" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet' + (i + 1) + '.xml"/>';
+            });
+            wbRels += '<Relationship Id="rId' + (groups.length + 1) + '" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>';
+
+            files.push({
+              name: "xl/workbook.xml",
+              data: utf8Bytes(
+                '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+                '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">' +
+                "<sheets>" + sheetsXml + "</sheets></workbook>"
+              )
+            });
+            files.push({
+              name: "xl/_rels/workbook.xml.rels",
+              data: utf8Bytes(
+                '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+                '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' + wbRels + "</Relationships>"
+              )
+            });
+            files.push({
+              name: "xl/styles.xml",
+              data: utf8Bytes(
+                '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+                '<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' +
+                '<fonts count="2"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><name val="Calibri"/></font></fonts>' +
+                '<fills count="2"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill></fills>' +
+                '<borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders>' +
+                '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>' +
+                '<cellXfs count="2"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>' +
+                '<xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1"/></cellXfs>' +
+                '<cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>' +
+                "</styleSheet>"
+              )
+            });
+
+            groups.forEach(function (g, gi) {
+              var sheetNum = gi + 1;
+              var sizes = allSizes[gi];
+              var rowsXml =
+                '<row r="1" ht="20" customHeight="1">' +
+                '<c r="A1" t="inlineStr" s="1"><is><t>Name</t></is></c>' +
+                '<c r="B1" t="inlineStr" s="1"><is><t>Time In</t></is></c>' +
+                '<c r="C1" t="inlineStr" s="1"><is><t>Reason</t></is></c></row>';
+              var anchorsXml = "";
+              var drawingRels = "";
+
+              g.rows.forEach(function (r, ri) {
+                var rowNum = ri + 2; /* sheet row (1-based); row 1 is the header */
+                rowsXml +=
+                  '<row r="' + rowNum + '" ht="58" customHeight="1">' +
+                  '<c r="A' + rowNum + '"/>' +
+                  '<c r="B' + rowNum + '" t="inlineStr"><is><t>' + xmlEscape(r.timeIn) + "</t></is></c>" +
+                  '<c r="C' + rowNum + '" t="inlineStr"><is><t>' + xmlEscape(r.reason) + "</t></is></c></row>";
+
+                var size = sizes[ri];
+                if (size && r.sigBytes) {
+                  mediaCount += 1;
+                  var maxW = 200, maxH = 52;
+                  var scale = Math.min(maxW / size.w, maxH / size.h, 1);
+                  var cx = Math.round(size.w * scale * PX_EMU);
+                  var cy = Math.round(size.h * scale * PX_EMU);
+                  files.push({ name: "xl/media/image" + mediaCount + ".png", data: r.sigBytes });
+                  drawingRels += '<Relationship Id="rId' + mediaCount + '" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="../media/image' + mediaCount + '.png"/>';
+                  anchorsXml +=
+                    "<xdr:oneCellAnchor>" +
+                    "<xdr:from><xdr:col>0</xdr:col><xdr:colOff>" + (2 * PX_EMU) + "</xdr:colOff>" +
+                    "<xdr:row>" + (rowNum - 1) + "</xdr:row><xdr:rowOff>" + (3 * PX_EMU) + "</xdr:rowOff></xdr:from>" +
+                    "<xdr:ext cx=\"" + cx + "\" cy=\"" + cy + "\"/>" +
+                    "<xdr:pic><xdr:nvPicPr><xdr:cNvPr id=\"" + (mediaCount + 1) + "\" name=\"Signature " + mediaCount + "\"/>" +
+                    "<xdr:cNvPicPr><a:picLocks noChangeAspect=\"1\"/></xdr:cNvPicPr></xdr:nvPicPr>" +
+                    "<xdr:blipFill><a:blip r:embed=\"rId" + mediaCount + "\"/><a:stretch><a:fillRect/></a:stretch></xdr:blipFill>" +
+                    "<xdr:spPr><a:prstGeom prst=\"rect\"><a:avLst/></a:prstGeom></xdr:spPr></xdr:pic>" +
+                    "<xdr:clientData/></xdr:oneCellAnchor>";
+                }
+              });
+
+              files.push({
+                name: "xl/worksheets/sheet" + sheetNum + ".xml",
+                data: utf8Bytes(
+                  '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+                  '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">' +
+                  '<sheetViews><sheetView workbookViewId="0"><selection activeCell="A1" sqref="A1"/></sheetView></sheetViews>' +
+                  '<cols><col min="1" max="1" width="30" customWidth="1"/><col min="2" max="2" width="14" customWidth="1"/><col min="3" max="3" width="48" customWidth="1"/></cols>' +
+                  "<sheetData>" + rowsXml + "</sheetData>" +
+                  '<drawing r:id="rId1"/></worksheet>'
+                )
+              });
+              files.push({
+                name: "xl/worksheets/_rels/sheet" + sheetNum + ".xml.rels",
+                data: utf8Bytes(
+                  '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+                  '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+                  '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/drawing" Target="../drawings/drawing' + sheetNum + '.xml"/>' +
+                  "</Relationships>"
+                )
+              });
+              files.push({
+                name: "xl/drawings/drawing" + sheetNum + ".xml",
+                data: utf8Bytes(
+                  '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+                  '<xdr:wsDr xmlns:xdr="http://schemas.openxmlformats.org/drawingml/2006/spreadsheetDrawing" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">' +
+                  anchorsXml + "</xdr:wsDr>"
+                )
+              });
+              files.push({
+                name: "xl/drawings/_rels/drawing" + sheetNum + ".xml.rels",
+                data: utf8Bytes(
+                  '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+                  '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' + drawingRels + "</Relationships>"
+                )
+              });
+            });
+
+            return zipStore(files);
+          });
+        }
+
+        $("exportBtn").addEventListener("click", function () {
+          var entries = dayEntries(viewDate);
+          if (entries.length === 0) {
+            showToast("No late entries to export for this day.");
+            return;
+          }
+          var groups = [];
+          PERIODS.forEach(function (p) {
+            var rows = entries
+              .filter(function (e) { return e.period === p; })
+              .sort(function (a, b) { return a.inAt - b.inAt; })
+              .map(function (e) {
+                var bytes = null;
+                try { bytes = dataURLBytes(e.sig); } catch (err) { bytes = null; }
+                return { sigSrc: e.sig, sigBytes: bytes, timeIn: fmtTime(e.inAt), reason: e.reason };
+              });
+            if (rows.length > 0) groups.push({ period: p, rows: rows });
+          });
+          showToast("Building the Excel file…");
+          buildWorkbook(viewDate, groups).then(function (blob) {
+            var url = URL.createObjectURL(blob);
+            var a = document.createElement("a");
+            a.href = url;
+            a.download = viewDate + ".xlsx";
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            setTimeout(function () { URL.revokeObjectURL(url); }, 4000);
+            showToast("Excel file saved as " + viewDate + ".xlsx");
+          }).catch(function () {
+            showToast("The Excel file could not be built on this device.");
+          });
+        });
+
+        renderAll();
+      })();
+    </script>
+  </body>
+</html>

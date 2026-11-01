@@ -1,0 +1,1422 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="color-scheme" content="light dark" />
+    <link rel="icon" href="data:," />
+    <title>Bathroom Log Standalone</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        --bg: #f2f3ef;
+        --surface: #ffffff;
+        --surface-2: #e9ebe4;
+        --ink: #1d242e;
+        --muted: #5d6874;
+        --line: #d5d9d0;
+        --accent: #175e4c;
+        --accent-ink: #ffffff;
+        --accent-soft: #dcefe6;
+        --warn-bg: #fdecec;
+        --warn-line: #e5a3a3;
+        --warn-ink: #9c1c1c;
+        --amber-bg: #fdf3e0;
+        --amber-line: #e3c98f;
+        --amber-ink: #7c5410;
+        --paper: #fffef9;
+        --shadow: 0 1px 3px rgba(20, 28, 22, 0.10), 0 6px 18px rgba(20, 28, 22, 0.06);
+        --radius: 14px;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #13171c;
+          --surface: #1d232b;
+          --surface-2: #262d37;
+          --ink: #edf1f5;
+          --muted: #9ba7b4;
+          --line: #343d49;
+          --accent: #2e9e77;
+          --accent-ink: #0c1a14;
+          --accent-soft: #1d332a;
+          --warn-bg: #3d2020;
+          --warn-line: #7c3f3f;
+          --warn-ink: #f3a8a8;
+          --amber-bg: #3a2f1a;
+          --amber-line: #6f5a2c;
+          --amber-ink: #e8c87e;
+          --paper: #fdfdf8;
+          --shadow: 0 1px 3px rgba(0,0,0,0.4), 0 6px 18px rgba(0,0,0,0.3);
+        }
+      }
+      * { box-sizing: border-box; }
+      html { -webkit-text-size-adjust: 100%; }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--ink);
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        font-size: 16px;
+        line-height: 1.45;
+      }
+      button { font: inherit; cursor: pointer; }
+      button:disabled { cursor: not-allowed; opacity: 0.5; }
+
+      .wrap { max-width: 1180px; margin: 0 auto; padding: 18px 16px 48px; }
+
+      /* ---------- Top bar ---------- */
+      .topbar {
+        display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between;
+        margin-bottom: 18px;
+      }
+      .title-block h1 {
+        margin: 0; font-size: 26px; font-weight: 800; letter-spacing: -0.01em;
+      }
+      .title-block p { margin: 2px 0 0; color: var(--muted); font-size: 14px; }
+      .top-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+      .btn {
+        border: 1px solid var(--line); background: var(--surface); color: var(--ink);
+        border-radius: 10px; padding: 10px 16px; font-weight: 600; min-height: 44px;
+      }
+      .btn:active { transform: translateY(1px); }
+      .btn-primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+      .btn-danger { background: var(--warn-bg); border-color: var(--warn-line); color: var(--warn-ink); }
+      .btn-quiet { background: transparent; }
+
+      /* ---------- Date bar ---------- */
+      .datebar {
+        display: flex; flex-wrap: wrap; gap: 10px; align-items: center;
+        background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius);
+        padding: 10px 12px; box-shadow: var(--shadow); margin-bottom: 18px;
+      }
+      .datebar .nav-btn { padding: 8px 14px; min-height: 40px; }
+      .date-label { font-size: 18px; font-weight: 700; margin-right: auto; }
+      .date-label .today-tag {
+        font-size: 12px; font-weight: 700; color: var(--accent); background: var(--accent-soft);
+        border-radius: 999px; padding: 2px 9px; margin-left: 8px; vertical-align: 2px;
+      }
+      .datebar input[type="date"] {
+        font: inherit; color: var(--ink); background: var(--surface-2);
+        border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; min-height: 40px;
+      }
+      .past-banner {
+        display: none; width: 100%; background: var(--amber-bg); border: 1px solid var(--amber-line);
+        color: var(--amber-ink); border-radius: 8px; padding: 8px 12px; font-size: 14px; font-weight: 600;
+      }
+      .past-banner.show { display: block; }
+
+      /* ---------- Layout ---------- */
+      .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; align-items: start; }
+      @media (max-width: 860px) { .grid { grid-template-columns: 1fr; } }
+      @media (min-width: 861px) {
+        .grid { grid-template-columns: 2fr 3fr; }
+        .sign-col { grid-column: 2; }
+        .board-col { grid-column: 1; }
+      }
+      .card {
+        background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius);
+        box-shadow: var(--shadow); padding: 18px; margin-bottom: 18px;
+      }
+      .card h2 { margin: 0 0 4px; font-size: 19px; font-weight: 800; }
+      .card .sub { margin: 0 0 14px; color: var(--muted); font-size: 14px; }
+      .count-badge {
+        display: inline-block; min-width: 26px; text-align: center; font-size: 13px; font-weight: 800;
+        background: var(--accent-soft); color: var(--accent); border-radius: 999px; padding: 2px 8px;
+        margin-left: 8px; vertical-align: 2px;
+      }
+
+      /* ---------- Signature pad ---------- */
+      .pad-shell {
+        position: relative; background: var(--paper); border: 2px solid var(--line);
+        border-radius: 10px; overflow: hidden;
+      }
+      .pad-shell canvas { display: block; width: 100%; height: 280px; touch-action: none; }
+      .pad-line {
+        position: absolute; left: 18px; right: 18px; bottom: 54px; border-bottom: 2px solid #b9beb2;
+        pointer-events: none;
+      }
+      .pad-x {
+        position: absolute; left: 20px; bottom: 58px; font-size: 20px; color: #8a9084;
+        pointer-events: none; font-weight: 600;
+      }
+      .pad-hint {
+        position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+        color: #9aa091; font-size: 17px; pointer-events: none; padding-bottom: 34px;
+      }
+      .pad-hint.hidden { display: none; }
+      .pad-foot {
+        display: flex; justify-content: space-between; align-items: center; margin-top: 8px;
+      }
+      .pad-foot .hint-text { color: var(--muted); font-size: 13px; }
+
+      /* ---------- Period picker ---------- */
+      .field-label { font-weight: 700; margin: 18px 0 8px; font-size: 15px; }
+      .periods { display: flex; gap: 8px; flex-wrap: wrap; }
+      .period-btn {
+        flex: 1 1 56px; min-height: 56px; font-size: 21px; font-weight: 800;
+        border: 2px solid var(--line); border-radius: 12px; background: var(--surface); color: var(--ink);
+      }
+      .period-btn.selected { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
+
+      .station-actions { display: flex; gap: 10px; margin-top: 20px; flex-wrap: wrap; }
+      .station-actions .btn { flex: 1 1 160px; min-height: 56px; font-size: 17px; font-weight: 800; border-radius: 12px; }
+      .form-error { display: none; margin-top: 12px; color: var(--warn-ink); font-weight: 600; font-size: 14px; }
+      .form-error.show { display: block; }
+
+      /* ---------- Out board & queue ---------- */
+      .pass-card {
+        border: 1px solid var(--line); border-radius: 12px; padding: 14px; margin-bottom: 12px;
+        background: var(--surface);
+      }
+      .pass-card.over { border-color: var(--warn-line); background: var(--warn-bg); }
+      .pass-top { display: flex; gap: 12px; align-items: flex-start; }
+      .sig-box {
+        background: var(--paper); border: 1px solid var(--line); border-radius: 8px;
+        padding: 4px 8px; flex: 0 0 auto; max-width: 200px;
+      }
+      .sig-box img { display: block; max-width: 184px; height: 44px; object-fit: contain; object-position: left center; }
+      .pass-meta { margin-left: auto; text-align: right; flex: 0 0 auto; }
+      .pass-meta .period-tag { font-weight: 800; font-size: 15px; }
+      .pass-meta .out-time { color: var(--muted); font-size: 13px; }
+      .timer-row { display: flex; align-items: center; gap: 10px; margin-top: 10px; flex-wrap: wrap; }
+      .timer { font-size: 26px; font-weight: 800; font-variant-numeric: tabular-nums; letter-spacing: 0.01em; }
+      .over-flag {
+        display: none; font-size: 13px; font-weight: 800; color: var(--warn-ink);
+        border: 1px solid var(--warn-line); border-radius: 999px; padding: 3px 10px;
+      }
+      .pass-card.over .over-flag { display: inline-block; }
+      .waiting-note { color: var(--muted); font-size: 13px; }
+      .pass-actions { margin-top: 12px; display: flex; gap: 8px; flex-wrap: wrap; }
+      .pass-actions .btn { min-height: 48px; font-weight: 700; }
+      .btn-back { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); flex: 1 1 140px; }
+
+      .queue-card { display: flex; gap: 12px; align-items: center; border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; margin-bottom: 10px; }
+      .queue-pos {
+        flex: 0 0 auto; width: 38px; height: 38px; border-radius: 50%;
+        background: var(--surface-2); display: flex; align-items: center; justify-content: center;
+        font-weight: 800; font-size: 16px;
+      }
+      .queue-card.first { border-color: var(--accent); background: var(--accent-soft); }
+      .queue-info { flex: 1 1 auto; min-width: 0; }
+      .queue-info .q-status { font-size: 13px; color: var(--muted); }
+      .queue-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+      .empty-note { color: var(--muted); font-size: 15px; padding: 10px 2px; }
+
+      /* ---------- Day log ---------- */
+      .log-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
+      .log-table { width: 100%; border-collapse: collapse; }
+      .log-table th, .log-table td { text-align: left; padding: 10px 8px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+      .log-table th { font-size: 13px; color: var(--muted); font-weight: 700; }
+      .log-table .sig-box img { max-width: 130px; height: 34px; }
+      .status-pill { font-size: 12px; font-weight: 800; border-radius: 999px; padding: 3px 10px; white-space: nowrap; }
+      .status-out { background: var(--amber-bg); color: var(--amber-ink); border: 1px solid var(--amber-line); }
+      .status-back { background: var(--accent-soft); color: var(--accent); border: 1px solid var(--line); }
+      .status-over { background: var(--warn-bg); color: var(--warn-ink); border: 1px solid var(--warn-line); }
+      .icon-btn {
+        border: 1px solid var(--line); background: var(--surface); color: var(--warn-ink);
+        border-radius: 8px; width: 40px; height: 40px; font-size: 17px; line-height: 1;
+      }
+      @media (max-width: 640px) {
+        .log-table thead { display: none; }
+        .log-table, .log-table tbody, .log-table tr, .log-table td { display: block; width: 100%; }
+        .log-table tr { border: 1px solid var(--line); border-radius: 12px; padding: 10px; margin-bottom: 10px; }
+        .log-table td { border-bottom: none; padding: 4px 2px; }
+        .log-table td::before { content: attr(data-label); display: block; font-size: 12px; color: var(--muted); font-weight: 700; }
+      }
+
+      /* ---------- Modals ---------- */
+      .overlay {
+        position: fixed; inset: 0; background: rgba(10, 14, 12, 0.55);
+        display: none; align-items: center; justify-content: center; padding: 18px; z-index: 50;
+      }
+      .overlay.show { display: flex; }
+      .dialog {
+        background: var(--surface); color: var(--ink); border-radius: 16px; padding: 22px;
+        max-width: 460px; width: 100%; box-shadow: var(--shadow); max-height: 88vh; overflow-y: auto;
+      }
+      .dialog h3 { margin: 0 0 8px; font-size: 20px; font-weight: 800; }
+      .dialog p { margin: 0 0 14px; color: var(--muted); }
+      .dialog .sig-box { margin-bottom: 14px; }
+      .dialog-actions { display: flex; flex-direction: column; gap: 8px; margin-top: 6px; }
+      .dialog-actions .btn { min-height: 52px; font-weight: 700; width: 100%; }
+
+      .setting-row {
+        display: flex; align-items: center; justify-content: space-between; gap: 14px;
+        padding: 14px 0; border-bottom: 1px solid var(--line);
+      }
+      .setting-row:last-of-type { border-bottom: none; }
+      .setting-row .s-text { flex: 1 1 auto; }
+      .setting-row .s-name { font-weight: 700; }
+      .setting-row .s-desc { color: var(--muted); font-size: 13px; margin-top: 2px; }
+      .switch { position: relative; flex: 0 0 auto; width: 56px; height: 32px; }
+      .switch input { position: absolute; opacity: 0; width: 100%; height: 100%; margin: 0; cursor: pointer; }
+      .switch .track {
+        position: absolute; inset: 0; border-radius: 999px; background: var(--surface-2);
+        border: 1px solid var(--line); pointer-events: none; transition: background 0.15s ease;
+      }
+      .switch .track::after {
+        content: ""; position: absolute; top: 3px; left: 3px; width: 24px; height: 24px;
+        border-radius: 50%; background: var(--surface); border: 1px solid var(--line);
+        transition: left 0.15s ease;
+      }
+      .switch input:checked + .track { background: var(--accent); border-color: var(--accent); }
+      .switch input:checked + .track::after { left: 27px; }
+      .switch input:focus-visible + .track { outline: 2px solid var(--accent); outline-offset: 2px; }
+      .setting-row select {
+        font: inherit; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--line);
+        background: var(--surface-2); color: var(--ink); min-height: 44px;
+      }
+      .storage-note { font-size: 13px; color: var(--muted); margin-top: 14px; }
+      .toast {
+        position: fixed; left: 50%; bottom: 22px; transform: translateX(-50%) translateY(20px);
+        background: var(--ink); color: var(--bg); padding: 12px 20px; border-radius: 999px;
+        font-weight: 700; opacity: 0; pointer-events: none; transition: opacity 0.2s ease, transform 0.2s ease; z-index: 60;
+        max-width: calc(100vw - 32px); text-align: center;
+      }
+      .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+      @media (prefers-reduced-motion: reduce) {
+        .toast, .switch .track, .switch .track::after { transition: none; }
+        .btn:active { transform: none; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <div class="topbar">
+        <div class="title-block">
+          <h1>Bathroom Log</h1>
+          <p>Abraham Lincoln HS &middot; Mr. Mehanovic</p>
+        </div>
+        <div class="top-actions">
+          <button class="btn" id="settingsBtn" type="button">Teacher settings</button>
+        </div>
+      </div>
+
+      <div class="datebar">
+        <button class="btn nav-btn" id="prevDayBtn" type="button" aria-label="Previous day">&#8592; Prev</button>
+        <div class="date-label"><span id="dateLabel">Today</span><span class="today-tag" id="todayTag">Today</span></div>
+        <input type="date" id="datePicker" aria-label="Pick a day" />
+        <button class="btn nav-btn" id="todayBtn" type="button">Today</button>
+        <button class="btn nav-btn" id="nextDayBtn" type="button" aria-label="Next day">Next &#8594;</button>
+        <div class="past-banner" id="pastBanner">You are viewing another day. Signing out is only open for today &mdash; tap Today to go back.</div>
+      </div>
+
+      <div class="grid">
+        <div class="sign-col">
+          <section class="card" id="stationCard" aria-label="Sign out station">
+            <h2>Sign out</h2>
+            <p class="sub">Sign your name, pick your period, then head out or join the line.</p>
+
+            <div class="pad-shell">
+              <canvas id="sigPad"></canvas>
+              <div class="pad-x">X</div>
+              <div class="pad-line"></div>
+              <div class="pad-hint" id="padHint">Sign here with the Pencil</div>
+            </div>
+            <div class="pad-foot">
+              <span class="hint-text">Finger or mouse work too. Pressure changes the line, just like ink.</span>
+              <button class="btn btn-quiet" id="clearPadBtn" type="button">Clear</button>
+            </div>
+
+            <div class="field-label" id="periodLabel">Your period</div>
+            <div class="periods" id="periodPicker" role="group" aria-labelledby="periodLabel"></div>
+
+            <div class="station-actions">
+              <button class="btn btn-primary" id="headOutBtn" type="button">I&rsquo;m heading out</button>
+              <button class="btn" id="joinLineBtn" type="button">Join the line</button>
+            </div>
+            <div class="form-error" id="formError" role="alert"></div>
+          </section>
+        </div>
+
+        <div class="board-col">
+          <section class="card" aria-label="Students out right now">
+            <h2>Out right now<span class="count-badge" id="outCount">0</span></h2>
+            <p class="sub">Tap &ldquo;I&rsquo;m back&rdquo; when a student returns.</p>
+            <div id="outBoard"></div>
+          </section>
+
+          <section class="card" id="queueCard" aria-label="Waiting line">
+            <h2>Up next<span class="count-badge" id="queueCount">0</span></h2>
+            <p class="sub">The line, in order. First in line goes when the pass is free.</p>
+            <div id="queueList"></div>
+          </section>
+        </div>
+      </div>
+
+      <section class="card" aria-label="Day log">
+        <h2 id="logHeading">Today&rsquo;s log</h2>
+        <p class="sub">Every pass for the day you are viewing, newest first.</p>
+        <div class="log-actions">
+          <button class="btn" id="exportBtn" type="button">Export CSV</button>
+          <button class="btn" id="exportExcelBtn" type="button">Export Excel</button>
+          <button class="btn btn-danger" id="clearDayBtn" type="button">Clear this day</button>
+        </div>
+        <div id="logBody"></div>
+      </section>
+    </div>
+
+    <!-- Hold-on / override dialog -->
+    <div class="overlay" id="holdOverlay" role="dialog" aria-modal="true" aria-labelledby="holdTitle">
+      <div class="dialog">
+        <h3 id="holdTitle">Hold on &mdash; one at a time</h3>
+        <p id="holdText">Another student is still out:</p>
+        <div class="sig-box" id="holdSigBox"><img id="holdSig" alt="Signature of the student who is still out" /></div>
+        <p id="holdMeta" style="margin-bottom: 4px;"></p>
+        <div class="dialog-actions">
+          <button class="btn btn-primary" id="holdJoinBtn" type="button">Join the line instead</button>
+          <button class="btn" id="holdOverrideBtn" type="button">Teacher override &mdash; head out anyway</button>
+          <button class="btn btn-quiet" id="holdCancelBtn" type="button">Cancel</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Confirm dialog -->
+    <div class="overlay" id="confirmOverlay" role="dialog" aria-modal="true" aria-labelledby="confirmTitle">
+      <div class="dialog">
+        <h3 id="confirmTitle">Are you sure?</h3>
+        <p id="confirmText"></p>
+        <div class="dialog-actions">
+          <button class="btn btn-danger" id="confirmYesBtn" type="button">Yes, do it</button>
+          <button class="btn btn-quiet" id="confirmNoBtn" type="button">Cancel</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Teacher settings -->
+    <div class="overlay" id="settingsOverlay" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
+      <div class="dialog">
+        <h3 id="settingsTitle">Teacher settings</h3>
+        <div class="setting-row">
+          <div class="s-text">
+            <div class="s-name">One student out at a time</div>
+            <div class="s-desc">When someone is out, the next student waits or needs a teacher override.</div>
+          </div>
+          <label class="switch">
+            <input type="checkbox" id="setOneOut" />
+            <span class="track"></span>
+          </label>
+        </div>
+        <div class="setting-row">
+          <div class="s-text">
+            <div class="s-name">Waiting line</div>
+            <div class="s-desc">Let students join the &ldquo;Up next&rdquo; line from the sign-out station.</div>
+          </div>
+          <label class="switch">
+            <input type="checkbox" id="setQueue" />
+            <span class="track"></span>
+          </label>
+        </div>
+        <div class="setting-row">
+          <div class="s-text">
+            <div class="s-name">Flag passes over</div>
+            <div class="s-desc">Out cards turn red once a pass runs past this long.</div>
+          </div>
+          <select id="setOverMinutes" aria-label="Flag passes over this many minutes">
+            <option value="10">10 min</option>
+            <option value="15">15 min</option>
+            <option value="20">20 min</option>
+            <option value="30">30 min</option>
+          </select>
+        </div>
+        <p class="storage-note">Everything on this page is stored on this device only, in this browser. Nothing is sent anywhere, and the log keeps working with no connection. Clearing the browser&rsquo;s site data would erase the log, so export a CSV when you want a copy.</p>
+        <div class="dialog-actions">
+          <button class="btn btn-primary" id="settingsCloseBtn" type="button">Done</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="toast" id="toast" role="status"></div>
+
+    <script>
+      (function () {
+        "use strict";
+
+        var LS_KEY = "bathroom-log-standalone-v1";
+        var PERIODS = [2, 3, 6, 7, 8];
+
+        /* ---------------- State ---------------- */
+        function defaultState() {
+          return {
+            settings: { oneOut: true, queueEnabled: true, overMinutes: 15 },
+            passes: [],   /* {id, date, period, sig, outAt, inAt}  inAt null = still out */
+            queue: []     /* {id, date, period, sig, joinedAt}  array order = line order */
+          };
+        }
+        var state = defaultState();
+        try {
+          var raw = localStorage.getItem(LS_KEY);
+          if (raw) {
+            var parsed = JSON.parse(raw);
+            if (parsed && parsed.settings && Array.isArray(parsed.passes) && Array.isArray(parsed.queue)) {
+              state = parsed;
+            }
+          }
+        } catch (e) { /* storage unavailable: run in memory for this session */ }
+
+        var storageOk = true;
+        function save() {
+          try {
+            localStorage.setItem(LS_KEY, JSON.stringify(state));
+          } catch (e) {
+            if (storageOk) {
+              storageOk = false;
+              showToast("This browser would not save. The log will last for this session only.");
+            }
+          }
+        }
+
+        /* ---------------- Dates & times ---------------- */
+        function pad2(n) { return (n < 10 ? "0" : "") + n; }
+        function dateKey(d) { return d.getFullYear() + "-" + pad2(d.getMonth() + 1) + "-" + pad2(d.getDate()); }
+        function todayKey() { return dateKey(new Date()); }
+        function parseKey(key) {
+          var p = key.split("-");
+          return new Date(parseInt(p[0], 10), parseInt(p[1], 10) - 1, parseInt(p[2], 10));
+        }
+        function shiftKey(key, days) {
+          var d = parseKey(key);
+          d.setDate(d.getDate() + days);
+          return dateKey(d);
+        }
+        function fmtDateLabel(key) {
+          return parseKey(key).toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric", year: "numeric" });
+        }
+        function fmtTime(ts) {
+          return new Date(ts).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+        }
+        function fmtElapsed(ms) {
+          var s = Math.max(0, Math.floor(ms / 1000));
+          var m = Math.floor(s / 60);
+          var sec = s % 60;
+          if (m >= 60) {
+            var h = Math.floor(m / 60);
+            return h + ":" + pad2(m % 60) + ":" + pad2(sec);
+          }
+          return m + ":" + pad2(sec);
+        }
+        function fmtDuration(ms) {
+          var mins = Math.round(ms / 60000);
+          if (mins < 1) return "under 1 min";
+          if (mins === 1) return "1 min";
+          return mins + " min";
+        }
+        function uid() {
+          return Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 9);
+        }
+
+        var viewDate = todayKey();
+        function isViewingToday() { return viewDate === todayKey(); }
+
+        /* ---------------- Element refs ---------------- */
+        function $(id) { return document.getElementById(id); }
+        var els = {
+          dateLabel: $("dateLabel"), todayTag: $("todayTag"), datePicker: $("datePicker"),
+          pastBanner: $("pastBanner"), stationCard: $("stationCard"),
+          periodPicker: $("periodPicker"), headOutBtn: $("headOutBtn"), joinLineBtn: $("joinLineBtn"),
+          formError: $("formError"), outBoard: $("outBoard"), outCount: $("outCount"),
+          queueCard: $("queueCard"), queueList: $("queueList"), queueCount: $("queueCount"),
+          logHeading: $("logHeading"), logBody: $("logBody"),
+          padHint: $("padHint"), toast: $("toast"),
+          holdOverlay: $("holdOverlay"), holdSig: $("holdSig"), holdMeta: $("holdMeta"),
+          holdJoinBtn: $("holdJoinBtn"),
+          confirmOverlay: $("confirmOverlay"), confirmTitle: $("confirmTitle"), confirmText: $("confirmText"),
+          settingsOverlay: $("settingsOverlay")
+        };
+
+        var toastTimer = null;
+        function showToast(msg) {
+          els.toast.textContent = msg;
+          els.toast.classList.add("show");
+          if (toastTimer) clearTimeout(toastTimer);
+          toastTimer = setTimeout(function () { els.toast.classList.remove("show"); }, 2600);
+        }
+
+        /* ---------------- Data helpers ---------------- */
+        function dayPasses(key) {
+          return state.passes.filter(function (p) { return p.date === key; });
+        }
+        function outNow(key) {
+          return dayPasses(key).filter(function (p) { return !p.inAt; })
+            .sort(function (a, b) { return a.outAt - b.outAt; });
+        }
+        function dayQueue(key) {
+          return state.queue.filter(function (q) { return q.date === key; });
+        }
+        function overMs() { return state.settings.overMinutes * 60000; }
+
+        /* ---------------- Period picker ---------------- */
+        var selectedPeriod = null;
+        PERIODS.forEach(function (p) {
+          var b = document.createElement("button");
+          b.type = "button";
+          b.className = "period-btn";
+          b.textContent = String(p);
+          b.setAttribute("aria-pressed", "false");
+          b.addEventListener("click", function () {
+            selectedPeriod = p;
+            var btns = els.periodPicker.querySelectorAll(".period-btn");
+            for (var i = 0; i < btns.length; i++) {
+              var on = btns[i].textContent === String(p);
+              btns[i].classList.toggle("selected", on);
+              btns[i].setAttribute("aria-pressed", on ? "true" : "false");
+            }
+            hideError();
+          });
+          els.periodPicker.appendChild(b);
+        });
+
+        /* ---------------- Signature pad ---------------- */
+        var canvas = $("sigPad");
+        var ctx = canvas.getContext("2d");
+        var hasInk = false;
+        var drawing = false;
+        var lastPoint = null;
+
+        function sizeCanvas() {
+          var rect = canvas.getBoundingClientRect();
+          var dpr = Math.min(window.devicePixelRatio || 1, 2);
+          canvas.width = Math.round(rect.width * dpr);
+          canvas.height = Math.round(rect.height * dpr);
+          ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+          ctx.lineCap = "round";
+          ctx.lineJoin = "round";
+          ctx.strokeStyle = "#1c2a4a";
+        }
+        sizeCanvas();
+
+        function padPoint(e) {
+          var rect = canvas.getBoundingClientRect();
+          return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+        }
+        canvas.addEventListener("pointerdown", function (e) {
+          if (!isViewingToday()) return;
+          e.preventDefault();
+          canvas.setPointerCapture(e.pointerId);
+          drawing = true;
+          lastPoint = padPoint(e);
+        });
+        canvas.addEventListener("pointermove", function (e) {
+          if (!drawing || !lastPoint) return;
+          e.preventDefault();
+          var pt = padPoint(e);
+          var pressure = (typeof e.pressure === "number" && e.pressure > 0) ? e.pressure : 0.5;
+          ctx.lineWidth = 1.1 + pressure * 3.2;
+          ctx.beginPath();
+          ctx.moveTo(lastPoint.x, lastPoint.y);
+          ctx.lineTo(pt.x, pt.y);
+          ctx.stroke();
+          lastPoint = pt;
+          if (!hasInk) {
+            hasInk = true;
+            els.padHint.classList.add("hidden");
+          }
+        });
+        function endStroke() { drawing = false; lastPoint = null; }
+        canvas.addEventListener("pointerup", endStroke);
+        canvas.addEventListener("pointercancel", endStroke);
+
+        function clearPad() {
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          hasInk = false;
+          els.padHint.classList.remove("hidden");
+        }
+        $("clearPadBtn").addEventListener("click", clearPad);
+
+        /* Downscale the signature before storing so the log stays small. */
+        function signatureDataURL() {
+          var targetW = 480;
+          var scale = Math.min(1, targetW / canvas.width);
+          var off = document.createElement("canvas");
+          off.width = Math.round(canvas.width * scale);
+          off.height = Math.round(canvas.height * scale);
+          var octx = off.getContext("2d");
+          octx.fillStyle = "#fffef9";
+          octx.fillRect(0, 0, off.width, off.height);
+          octx.drawImage(canvas, 0, 0, off.width, off.height);
+          return off.toDataURL("image/png");
+        }
+
+        /* ---------------- Form helpers ---------------- */
+        function showError(msg) {
+          els.formError.textContent = msg;
+          els.formError.classList.add("show");
+        }
+        function hideError() { els.formError.classList.remove("show"); }
+        function validateForm() {
+          if (!isViewingToday()) { showError("You are viewing another day. Tap Today to sign out."); return null; }
+          if (!hasInk) { showError("Sign your name first."); return null; }
+          if (!selectedPeriod) { showError("Pick your period."); return null; }
+          hideError();
+          return { period: selectedPeriod, sig: signatureDataURL() };
+        }
+        function resetStation() {
+          clearPad();
+          selectedPeriod = null;
+          var btns = els.periodPicker.querySelectorAll(".period-btn");
+          for (var i = 0; i < btns.length; i++) {
+            btns[i].classList.remove("selected");
+            btns[i].setAttribute("aria-pressed", "false");
+          }
+          hideError();
+        }
+
+        /* ---------------- Actions ---------------- */
+        function createPass(period, sig, when) {
+          state.passes.push({
+            id: uid(), date: viewDate, period: period, sig: sig,
+            outAt: when || Date.now(), inAt: null
+          });
+          save();
+        }
+
+        var pendingAttempt = null; /* {period, sig} waiting on the hold dialog */
+
+        function attemptHeadOut(period, sig) {
+          var outs = outNow(viewDate);
+          var line = dayQueue(viewDate);
+          if (state.settings.oneOut && outs.length > 0) {
+            pendingAttempt = { period: period, sig: sig };
+            var first = outs[0];
+            els.holdSig.src = first.sig;
+            els.holdMeta.textContent = "Period " + first.period + " · out since " + fmtTime(first.outAt);
+            els.holdJoinBtn.style.display = state.settings.queueEnabled ? "" : "none";
+            $("holdTitle").textContent = "Hold on — one at a time";
+            $("holdText").textContent = "Another student is still out:";
+            $("holdSigBox").style.display = "";
+            els.holdOverlay.classList.add("show");
+            return;
+          }
+          if (state.settings.queueEnabled && line.length > 0) {
+            pendingAttempt = { period: period, sig: sig };
+            els.holdSig.src = line[0].sig;
+            els.holdMeta.textContent = "Period " + line[0].period + " · first in line since " + fmtTime(line[0].joinedAt);
+            els.holdJoinBtn.style.display = "";
+            $("holdTitle").textContent = "There's a line";
+            $("holdText").textContent = line.length + (line.length === 1 ? " student is" : " students are") + " already waiting. First up:";
+            $("holdSigBox").style.display = "";
+            els.holdOverlay.classList.add("show");
+            return;
+          }
+          createPass(period, sig);
+          resetStation();
+          renderAll();
+          showToast("Signed out. The clock is running.");
+        }
+
+        els.headOutBtn.addEventListener("click", function () {
+          var v = validateForm();
+          if (v) attemptHeadOut(v.period, v.sig);
+        });
+
+        function joinLine(period, sig) {
+          state.queue.push({ id: uid(), date: viewDate, period: period, sig: sig, joinedAt: Date.now() });
+          save();
+          var pos = dayQueue(viewDate).length;
+          resetStation();
+          renderAll();
+          showToast("You're in line at #" + pos + ".");
+        }
+
+        els.joinLineBtn.addEventListener("click", function () {
+          var v = validateForm();
+          if (v) joinLine(v.period, v.sig);
+        });
+
+        $("holdJoinBtn").addEventListener("click", function () {
+          els.holdOverlay.classList.remove("show");
+          if (pendingAttempt) joinLine(pendingAttempt.period, pendingAttempt.sig);
+          pendingAttempt = null;
+        });
+        $("holdOverrideBtn").addEventListener("click", function () {
+          els.holdOverlay.classList.remove("show");
+          if (pendingAttempt) {
+            createPass(pendingAttempt.period, pendingAttempt.sig);
+            resetStation();
+            renderAll();
+            showToast("Teacher override — signed out.");
+          }
+          pendingAttempt = null;
+        });
+        $("holdCancelBtn").addEventListener("click", function () {
+          els.holdOverlay.classList.remove("show");
+          pendingAttempt = null;
+        });
+
+        function markBack(passId) {
+          for (var i = 0; i < state.passes.length; i++) {
+            if (state.passes[i].id === passId) {
+              state.passes[i].inAt = Date.now();
+              break;
+            }
+          }
+          save();
+          renderAll();
+          var line = dayQueue(viewDate);
+          if (state.settings.queueEnabled && line.length > 0 && outNow(viewDate).length === 0) {
+            showToast("Pass is free — first in line can head out.");
+          } else {
+            showToast("Welcome back.");
+          }
+        }
+
+        function queueHeadOut(entryId, force) {
+          var idx = -1;
+          for (var i = 0; i < state.queue.length; i++) {
+            if (state.queue[i].id === entryId) { idx = i; break; }
+          }
+          if (idx < 0) return;
+          var entry = state.queue[idx];
+          if (!force && state.settings.oneOut && outNow(entry.date).length > 0) {
+            showToast("Still waiting — someone is out.");
+            return;
+          }
+          state.queue.splice(idx, 1);
+          state.passes.push({
+            id: uid(), date: entry.date, period: entry.period, sig: entry.sig,
+            outAt: Date.now(), inAt: null
+          });
+          save();
+          renderAll();
+          showToast("You're up — signed out.");
+        }
+
+        function leaveLine(entryId) {
+          state.queue = state.queue.filter(function (q) { return q.id !== entryId; });
+          save();
+          renderAll();
+          showToast("Left the line.");
+        }
+
+        /* ---------------- Confirm dialog ---------------- */
+        var confirmAction = null;
+        function askConfirm(title, text, yesLabel, action) {
+          $("confirmTitle").textContent = title;
+          $("confirmText").textContent = text;
+          $("confirmYesBtn").textContent = yesLabel;
+          confirmAction = action;
+          els.confirmOverlay.classList.add("show");
+        }
+        $("confirmYesBtn").addEventListener("click", function () {
+          els.confirmOverlay.classList.remove("show");
+          if (confirmAction) confirmAction();
+          confirmAction = null;
+        });
+        $("confirmNoBtn").addEventListener("click", function () {
+          els.confirmOverlay.classList.remove("show");
+          confirmAction = null;
+        });
+
+        /* ---------------- Rendering ---------------- */
+        function sigImg(src, alt) {
+          var img = document.createElement("img");
+          img.src = src;
+          img.alt = alt || "Student signature";
+          return img;
+        }
+        function sigBox(src, alt) {
+          var box = document.createElement("div");
+          box.className = "sig-box";
+          box.appendChild(sigImg(src, alt));
+          return box;
+        }
+        function makeBtn(label, cls) {
+          var b = document.createElement("button");
+          b.type = "button";
+          b.className = "btn " + (cls || "");
+          b.textContent = label;
+          return b;
+        }
+
+        function renderOutBoard() {
+          var outs = isViewingToday() ? outNow(viewDate) : [];
+          els.outCount.textContent = String(outs.length);
+          els.outBoard.innerHTML = "";
+          if (!isViewingToday()) {
+            var note = document.createElement("div");
+            note.className = "empty-note";
+            note.textContent = "The live board only shows today. This day's passes are in the log below.";
+            els.outBoard.appendChild(note);
+            return;
+          }
+          if (outs.length === 0) {
+            var empty = document.createElement("div");
+            empty.className = "empty-note";
+            empty.textContent = "Nobody is out. The pass is free.";
+            els.outBoard.appendChild(empty);
+            return;
+          }
+          var waiting = dayQueue(viewDate).length;
+          outs.forEach(function (p) {
+            var card = document.createElement("div");
+            card.className = "pass-card";
+            card.setAttribute("data-out-at", String(p.outAt));
+
+            var top = document.createElement("div");
+            top.className = "pass-top";
+            top.appendChild(sigBox(p.sig));
+            var meta = document.createElement("div");
+            meta.className = "pass-meta";
+            var per = document.createElement("div");
+            per.className = "period-tag";
+            per.textContent = "Period " + p.period;
+            var ot = document.createElement("div");
+            ot.className = "out-time";
+            ot.textContent = "Out at " + fmtTime(p.outAt);
+            meta.appendChild(per);
+            meta.appendChild(ot);
+            top.appendChild(meta);
+            card.appendChild(top);
+
+            var trow = document.createElement("div");
+            trow.className = "timer-row";
+            var timer = document.createElement("span");
+            timer.className = "timer";
+            timer.setAttribute("data-timer", String(p.outAt));
+            timer.textContent = fmtElapsed(Date.now() - p.outAt);
+            var flag = document.createElement("span");
+            flag.className = "over-flag";
+            flag.textContent = "Over " + state.settings.overMinutes + " min";
+            trow.appendChild(timer);
+            trow.appendChild(flag);
+            if (waiting > 0) {
+              var wn = document.createElement("span");
+              wn.className = "waiting-note";
+              wn.textContent = waiting + (waiting === 1 ? " student" : " students") + " waiting in line";
+              trow.appendChild(wn);
+            }
+            card.appendChild(trow);
+
+            var actions = document.createElement("div");
+            actions.className = "pass-actions";
+            var back = makeBtn("I'm back", "btn-back");
+            back.addEventListener("click", function () { markBack(p.id); });
+            actions.appendChild(back);
+            card.appendChild(actions);
+
+            els.outBoard.appendChild(card);
+          });
+          updateTimers();
+        }
+
+        function renderQueue() {
+          var line = isViewingToday() ? dayQueue(viewDate) : [];
+          els.queueCount.textContent = String(line.length);
+          els.queueCard.style.display = state.settings.queueEnabled ? "" : "none";
+          els.queueList.innerHTML = "";
+          if (!state.settings.queueEnabled) return;
+          if (!isViewingToday()) {
+            var note = document.createElement("div");
+            note.className = "empty-note";
+            note.textContent = "The line is for today only.";
+            els.queueList.appendChild(note);
+            return;
+          }
+          if (line.length === 0) {
+            var empty = document.createElement("div");
+            empty.className = "empty-note";
+            empty.textContent = "No one is waiting.";
+            els.queueList.appendChild(empty);
+            return;
+          }
+          var blocked = state.settings.oneOut && outNow(viewDate).length > 0;
+          line.forEach(function (q, i) {
+            var card = document.createElement("div");
+            card.className = "queue-card" + (i === 0 ? " first" : "");
+            var pos = document.createElement("div");
+            pos.className = "queue-pos";
+            pos.textContent = String(i + 1);
+            card.appendChild(pos);
+
+            var info = document.createElement("div");
+            info.className = "queue-info";
+            info.appendChild(sigBox(q.sig));
+            var status = document.createElement("div");
+            status.className = "q-status";
+            if (i === 0) {
+              status.textContent = blocked
+                ? "Period " + q.period + " · in line since " + fmtTime(q.joinedAt) + " · waiting for the student out to return"
+                : "Period " + q.period + " · in line since " + fmtTime(q.joinedAt) + " · the pass is free";
+            } else {
+              status.textContent = "Period " + q.period + " · in line since " + fmtTime(q.joinedAt);
+            }
+            info.appendChild(status);
+
+            var actions = document.createElement("div");
+            actions.className = "queue-actions";
+            if (i === 0 && !blocked) {
+              var go = makeBtn("You're up — head out", "btn-primary");
+              go.addEventListener("click", function () { queueHeadOut(q.id, false); });
+              actions.appendChild(go);
+            }
+            if (i === 0 && blocked) {
+              var ovr = makeBtn("Teacher override — head out anyway", "");
+              ovr.addEventListener("click", function () {
+                askConfirm(
+                  "Teacher override",
+                  "Send the first student in line out while someone else is still out?",
+                  "Yes, send them out",
+                  function () { queueHeadOut(q.id, true); }
+                );
+              });
+              actions.appendChild(ovr);
+            }
+            var leave = makeBtn("Leave the line", "btn-quiet");
+            leave.addEventListener("click", function () { leaveLine(q.id); });
+            actions.appendChild(leave);
+            info.appendChild(actions);
+
+            card.appendChild(info);
+            els.queueList.appendChild(card);
+          });
+        }
+
+        function renderLog() {
+          var passes = dayPasses(viewDate).slice().sort(function (a, b) { return b.outAt - a.outAt; });
+          els.logHeading.textContent = isViewingToday() ? "Today's log" : "Log for " + fmtDateLabel(viewDate);
+          els.logBody.innerHTML = "";
+          if (passes.length === 0) {
+            var empty = document.createElement("div");
+            empty.className = "empty-note";
+            empty.textContent = "No passes recorded for this day yet.";
+            els.logBody.appendChild(empty);
+            return;
+          }
+          var table = document.createElement("table");
+          table.className = "log-table";
+          var thead = document.createElement("thead");
+          thead.innerHTML = "<tr><th>Signature</th><th>Period</th><th>Out</th><th>Back</th><th>Time out</th><th>Status</th><th><span style='position:absolute;left:-9999px'>Delete</span></th></tr>";
+          table.appendChild(thead);
+          var tbody = document.createElement("tbody");
+          var now = Date.now();
+          passes.forEach(function (p) {
+            var tr = document.createElement("tr");
+            function td(label) {
+              var cell = document.createElement("td");
+              cell.setAttribute("data-label", label);
+              return cell;
+            }
+            var cSig = td("Signature");
+            cSig.appendChild(sigBox(p.sig));
+            tr.appendChild(cSig);
+
+            var cPer = td("Period");
+            cPer.textContent = String(p.period);
+            tr.appendChild(cPer);
+
+            var cOut = td("Out");
+            cOut.textContent = fmtTime(p.outAt);
+            tr.appendChild(cOut);
+
+            var cIn = td("Back");
+            cIn.textContent = p.inAt ? fmtTime(p.inAt) : "—";
+            tr.appendChild(cIn);
+
+            var cDur = td("Time out");
+            cDur.textContent = fmtDuration((p.inAt || now) - p.outAt);
+            tr.appendChild(cDur);
+
+            var cStatus = td("Status");
+            var pill = document.createElement("span");
+            if (!p.inAt && now - p.outAt > overMs()) {
+              pill.className = "status-pill status-over";
+              pill.textContent = "Out · over " + state.settings.overMinutes + " min";
+            } else if (!p.inAt) {
+              pill.className = "status-pill status-out";
+              pill.textContent = "Out now";
+            } else {
+              pill.className = "status-pill status-back";
+              pill.textContent = "Back";
+            }
+            cStatus.appendChild(pill);
+            tr.appendChild(cStatus);
+
+            var cDel = td("");
+            var del = document.createElement("button");
+            del.type = "button";
+            del.className = "icon-btn";
+            del.textContent = "×";
+            del.setAttribute("aria-label", "Delete this pass");
+            del.addEventListener("click", function () {
+              askConfirm(
+                "Delete this pass?",
+                "Period " + p.period + ", out at " + fmtTime(p.outAt) + ". This removes the pass and its signature from the log. There is no undo.",
+                "Yes, delete it",
+                function () {
+                  state.passes = state.passes.filter(function (x) { return x.id !== p.id; });
+                  save();
+                  renderAll();
+                  showToast("Pass deleted.");
+                }
+              );
+            });
+            cDel.appendChild(del);
+            tr.appendChild(cDel);
+
+            tbody.appendChild(tr);
+          });
+          table.appendChild(tbody);
+          els.logBody.appendChild(table);
+        }
+
+        function renderStation() {
+          var today = isViewingToday();
+          els.headOutBtn.disabled = !today;
+          els.joinLineBtn.disabled = !today;
+          els.joinLineBtn.style.display = state.settings.queueEnabled ? "" : "none";
+          if (state.settings.queueEnabled && today) {
+            var pos = dayQueue(viewDate).length + 1;
+            els.joinLineBtn.textContent = pos > 1 ? "Join the line — you'd be #" + pos : "Join the line";
+          } else {
+            els.joinLineBtn.textContent = "Join the line";
+          }
+        }
+
+        function renderDateBar() {
+          els.dateLabel.textContent = fmtDateLabel(viewDate);
+          els.todayTag.style.display = isViewingToday() ? "" : "none";
+          els.datePicker.value = viewDate;
+          els.pastBanner.classList.toggle("show", !isViewingToday());
+          $("nextDayBtn").disabled = isViewingToday();
+        }
+
+        function renderAll() {
+          renderDateBar();
+          renderStation();
+          renderOutBoard();
+          renderQueue();
+          renderLog();
+        }
+
+        /* ---------------- Live timers ---------------- */
+        function updateTimers() {
+          var now = Date.now();
+          var timers = els.outBoard.querySelectorAll("[data-timer]");
+          for (var i = 0; i < timers.length; i++) {
+            var outAt = parseInt(timers[i].getAttribute("data-timer"), 10);
+            timers[i].textContent = fmtElapsed(now - outAt);
+            var card = timers[i].closest(".pass-card");
+            if (card) card.classList.toggle("over", now - outAt > overMs());
+          }
+        }
+        setInterval(function () {
+          if (isViewingToday() && outNow(viewDate).length > 0) {
+            var before = els.outBoard.querySelectorAll(".pass-card.over").length;
+            updateTimers();
+            var after = els.outBoard.querySelectorAll(".pass-card.over").length;
+            if (after !== before) renderLog();
+          }
+          /* Midnight rollover: if the day flipped while the page sat open, follow it. */
+          if (isViewingToday() === false && viewDate === shiftKey(todayKey(), -1)) {
+            /* was viewing "today" before midnight; nothing to do */
+          }
+        }, 1000);
+
+        /* ---------------- Date navigation ---------------- */
+        function goTo(key) {
+          viewDate = key;
+          resetStation();
+          renderAll();
+        }
+        $("prevDayBtn").addEventListener("click", function () { goTo(shiftKey(viewDate, -1)); });
+        $("nextDayBtn").addEventListener("click", function () {
+          var next = shiftKey(viewDate, 1);
+          if (next <= todayKey()) goTo(next);
+        });
+        $("todayBtn").addEventListener("click", function () { goTo(todayKey()); });
+        els.datePicker.addEventListener("change", function () {
+          if (els.datePicker.value && els.datePicker.value <= todayKey()) {
+            goTo(els.datePicker.value);
+          } else {
+            renderDateBar();
+          }
+        });
+
+        /* ---------------- Export & clear ---------------- */
+        function csvEscape(v) {
+          v = String(v);
+          if (v.indexOf(",") >= 0 || v.indexOf('"') >= 0 || v.indexOf("\n") >= 0) {
+            return '"' + v.replace(/"/g, '""') + '"';
+          }
+          return v;
+        }
+        $("exportBtn").addEventListener("click", function () {
+          var passes = dayPasses(viewDate).slice().sort(function (a, b) { return a.outAt - b.outAt; });
+          if (passes.length === 0) {
+            showToast("No passes to export for this day.");
+            return;
+          }
+          var rows = [["Name", "Period", "Time Out", "Time In", "Minutes Out", "Status"]];
+          passes.forEach(function (p) {
+            var end = p.inAt || Date.now();
+            rows.push([
+              "Signed (signature)",
+              p.period,
+              fmtTime(p.outAt),
+              p.inAt ? fmtTime(p.inAt) : "",
+              Math.round((end - p.outAt) / 60000),
+              p.inAt ? "Back" : "Still out"
+            ]);
+          });
+          var csv = rows.map(function (r) { return r.map(csvEscape).join(","); }).join("\r\n");
+          var blob = new Blob([csv], { type: "text/csv" });
+          var url = URL.createObjectURL(blob);
+          var a = document.createElement("a");
+          a.href = url;
+          a.download = "bathroom-log-" + viewDate + ".csv";
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          setTimeout(function () { URL.revokeObjectURL(url); }, 2000);
+          showToast("CSV downloaded for " + viewDate + ".");
+        });
+
+        /* ---- Minimal XLSX writer (no library): ZIP-store + OOXML, signature PNGs embedded ---- */
+        var crcTable = null;
+        function makeCrcTable() {
+          var t = [];
+          for (var n = 0; n < 256; n++) {
+            var c = n;
+            for (var k = 0; k < 8; k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+            t[n] = c >>> 0;
+          }
+          return t;
+        }
+        function crc32(bytes) {
+          if (!crcTable) crcTable = makeCrcTable();
+          var crc = 0xFFFFFFFF;
+          for (var i = 0; i < bytes.length; i++) crc = crcTable[(crc ^ bytes[i]) & 0xFF] ^ (crc >>> 8);
+          return (crc ^ 0xFFFFFFFF) >>> 0;
+        }
+        function txtBytes(s) { return new TextEncoder().encode(s); }
+        function b64Bytes(b64) {
+          var bin = atob(b64);
+          var out = new Uint8Array(bin.length);
+          for (var i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+          return out;
+        }
+        function xmlEsc(s) {
+          return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+        }
+        function zipStore(files) {
+          var now = new Date();
+          var dosTime = ((now.getHours() & 31) << 11) | ((now.getMinutes() & 63) << 5) | ((Math.floor(now.getSeconds() / 2)) & 31);
+          var dosDate = (((now.getFullYear() - 1980) & 127) << 9) | (((now.getMonth() + 1) & 15) << 5) | (now.getDate() & 31);
+          var parts = [], centrals = [], offset = 0;
+          files.forEach(function (f) {
+            var nameB = txtBytes(f.name);
+            var crc = crc32(f.data);
+            var lh = new DataView(new ArrayBuffer(30));
+            lh.setUint32(0, 0x04034b50, true); lh.setUint16(4, 20, true); lh.setUint16(6, 0, true);
+            lh.setUint16(8, 0, true); lh.setUint16(10, dosTime, true); lh.setUint16(12, dosDate, true);
+            lh.setUint32(14, crc, true); lh.setUint32(18, f.data.length, true); lh.setUint32(22, f.data.length, true);
+            lh.setUint16(26, nameB.length, true); lh.setUint16(28, 0, true);
+            parts.push(new Uint8Array(lh.buffer), nameB, f.data);
+            var ch = new DataView(new ArrayBuffer(46));
+            ch.setUint32(0, 0x02014b50, true); ch.setUint16(4, 20, true); ch.setUint16(6, 20, true);
+            ch.setUint16(8, 0, true); ch.setUint16(10, 0, true); ch.setUint16(12, dosTime, true); ch.setUint16(14, dosDate, true);
+            ch.setUint32(16, crc, true); ch.setUint32(20, f.data.length, true); ch.setUint32(24, f.data.length, true);
+            ch.setUint16(28, nameB.length, true); ch.setUint32(42, offset, true);
+            centrals.push(new Uint8Array(ch.buffer), nameB);
+            offset += 30 + nameB.length + f.data.length;
+          });
+          var cdSize = 0;
+          centrals.forEach(function (c) { cdSize += c.length; });
+          var end = new DataView(new ArrayBuffer(22));
+          end.setUint32(0, 0x06054b50, true); end.setUint16(8, files.length, true); end.setUint16(10, files.length, true);
+          end.setUint32(12, cdSize, true); end.setUint32(16, offset, true);
+          var all = parts.concat(centrals); all.push(new Uint8Array(end.buffer));
+          return new Blob(all, { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+        }
+        function inlineCell(ref, val, style) {
+          var s = style ? ' s="' + style + '"' : "";
+          if (val === "" || val === null || val === undefined) return '<c r="' + ref + '"' + s + "/>";
+          return '<c r="' + ref + '" t="inlineStr"' + s + "><is><t>" + xmlEsc(val) + "</t></is></c>";
+        }
+        function buildXlsxBlob(allPasses) {
+          var media = []; /* {file, data} */
+          var sheetInfos = [];
+          PERIODS.forEach(function (period, si) {
+            var passes = allPasses.filter(function (p) { return p.period === period; });
+            var anchors = [], dRels = [];
+            passes.forEach(function (p, idx) {
+              if (p.sig && p.sig.indexOf("data:image") === 0) {
+                var b64 = p.sig.split(",")[1] || "";
+                if (!b64) return;
+                var g = media.length + 1;
+                media.push({ file: "image" + g + ".png", data: b64Bytes(b64) });
+                var rid = "rId" + (anchors.length + 1);
+                dRels.push({ id: rid, target: "../media/image" + g + ".png" });
+                var row0 = idx + 1; /* 0-based: header 0, first data 1 */
+                anchors.push(
+                  '<xdr:twoCellAnchor editAs="oneCell"><xdr:from><xdr:col>0</xdr:col><xdr:colOff>30000</xdr:colOff><xdr:row>' + row0 + '</xdr:row><xdr:rowOff>30000</xdr:rowOff></xdr:from>' +
+                  '<xdr:to><xdr:col>1</xdr:col><xdr:colOff>0</xdr:colOff><xdr:row>' + row0 + '</xdr:row><xdr:rowOff>520000</xdr:rowOff></xdr:to>' +
+                  '<xdr:pic><xdr:nvPicPr><xdr:cNvPr id="' + (idx + 2) + '" name="Signature ' + (idx + 1) + '"/><xdr:cNvPicPr><a:picLocks noChangeAspect="1"/></xdr:cNvPicPr></xdr:nvPicPr>' +
+                  '<xdr:blipFill><a:blip r:embed="' + rid + '"/><a:stretch><a:fillRect/></a:stretch></xdr:blipFill>' +
+                  '<xdr:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="1750000" cy="490000"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></xdr:spPr></xdr:pic><xdr:clientData/></xdr:twoCellAnchor>'
+                );
+              }
+            });
+            var rows = '<row r="1" ht="22" customHeight="1">' +
+              inlineCell("A1", "Name", 1) + inlineCell("B1", "Time Out", 1) + inlineCell("C1", "Time Back", 1) + inlineCell("D1", "Total Time Out", 1) + "</row>";
+            passes.forEach(function (p, idx) {
+              var r = idx + 2;
+              var total = p.inAt ? fmtDuration(p.inAt - p.outAt) : "Still out";
+              rows += '<row r="' + r + '" ht="54" customHeight="1"><c r="A' + r + '"/>' +
+                inlineCell("B" + r, fmtTime(p.outAt)) + inlineCell("C" + r, p.inAt ? fmtTime(p.inAt) : "") + inlineCell("D" + r, total) + "</row>";
+            });
+            var sheetXml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n' +
+              '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">' +
+              '<sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/><selection pane="bottomLeft" activeCell="A2" sqref="A2"/></sheetView></sheetViews>' +
+              '<cols><col min="1" max="1" width="34" customWidth="1"/><col min="2" max="2" width="16" customWidth="1"/><col min="3" max="3" width="16" customWidth="1"/><col min="4" max="4" width="18" customWidth="1"/></cols>' +
+              "<sheetData>" + rows + "</sheetData>" + (anchors.length ? '<drawing r:id="rId1"/>' : "") + "</worksheet>";
+            var drawingXml = null, drawingRelsXml = null, sheetRelsXml = null;
+            if (anchors.length) {
+              drawingXml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<xdr:wsDr xmlns:xdr="http://schemas.openxmlformats.org/drawingml/2006/spreadsheetDrawing" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">' + anchors.join("") + "</xdr:wsDr>";
+              drawingRelsXml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+                dRels.map(function (d) { return '<Relationship Id="' + d.id + '" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="' + d.target + '"/>'; }).join("") + "</Relationships>";
+              sheetRelsXml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/drawing" Target="../drawings/drawing' + (si + 1) + '.xml"/></Relationships>';
+            }
+            sheetInfos.push({ period: period, sheetXml: sheetXml, drawingXml: drawingXml, drawingRelsXml: drawingRelsXml, sheetRelsXml: sheetRelsXml });
+          });
+          var ct = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">' +
+            '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Default Extension="png" ContentType="image/png"/>' +
+            '<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>' +
+            '<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>' +
+            sheetInfos.map(function (s, i) { return '<Override PartName="/xl/worksheets/sheet' + (i + 1) + '.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>'; }).join("") +
+            sheetInfos.map(function (s, i) { return s.drawingXml ? '<Override PartName="/xl/drawings/drawing' + (i + 1) + '.xml" ContentType="application/vnd.openxmlformats-officedocument.drawing+xml"/>' : ""; }).join("") + "</Types>";
+          var rootRels = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>';
+          var wbXml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets>' +
+            sheetInfos.map(function (s, i) { return '<sheet name="Period ' + s.period + '" sheetId="' + (i + 1) + '" r:id="rId' + (i + 1) + '"/>'; }).join("") + "</sheets></workbook>";
+          var wbRels = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+            sheetInfos.map(function (s, i) { return '<Relationship Id="rId' + (i + 1) + '" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet' + (i + 1) + '.xml"/>'; }).join("") +
+            '<Relationship Id="rId' + (sheetInfos.length + 1) + '" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>';
+          var stylesXml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' +
+            '<fonts count="2"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="12"/><name val="Calibri"/></font></fonts>' +
+            '<fills count="3"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FFDCEFE6"/><bgColor indexed="64"/></patternFill></fill></fills>' +
+            '<borders count="1"><border><left/><right/><top/><bottom/></border></borders>' +
+            '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>' +
+            '<cellXfs count="2"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="2" borderId="0" xfId="0" applyFont="1" applyFill="1"/></cellXfs></styleSheet>';
+          var files = [
+            { name: "[Content_Types].xml", data: txtBytes(ct) },
+            { name: "_rels/.rels", data: txtBytes(rootRels) },
+            { name: "xl/workbook.xml", data: txtBytes(wbXml) },
+            { name: "xl/_rels/workbook.xml.rels", data: txtBytes(wbRels) },
+            { name: "xl/styles.xml", data: txtBytes(stylesXml) }
+          ];
+          sheetInfos.forEach(function (s, i) {
+            files.push({ name: "xl/worksheets/sheet" + (i + 1) + ".xml", data: txtBytes(s.sheetXml) });
+            if (s.sheetRelsXml) files.push({ name: "xl/worksheets/_rels/sheet" + (i + 1) + ".xml.rels", data: txtBytes(s.sheetRelsXml) });
+            if (s.drawingXml) {
+              files.push({ name: "xl/drawings/drawing" + (i + 1) + ".xml", data: txtBytes(s.drawingXml) });
+              files.push({ name: "xl/drawings/_rels/drawing" + (i + 1) + ".xml.rels", data: txtBytes(s.drawingRelsXml) });
+            }
+          });
+          media.forEach(function (m) { files.push({ name: "xl/media/" + m.file, data: m.data }); });
+          return zipStore(files);
+        }
+
+        $("exportExcelBtn").addEventListener("click", function () {
+          var allPasses = dayPasses(viewDate).slice().sort(function (a, b) { return a.outAt - b.outAt; });
+          if (allPasses.length === 0) {
+            showToast("No passes to export for this day.");
+            return;
+          }
+          var btn = $("exportExcelBtn");
+          var originalLabel = btn.textContent;
+          btn.disabled = true;
+          btn.textContent = "Building Excel…";
+          try {
+            var blob = buildXlsxBlob(allPasses);
+            var url = URL.createObjectURL(blob);
+            var a = document.createElement("a");
+            a.href = url;
+            a.download = viewDate + ".xlsx";
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            setTimeout(function () { URL.revokeObjectURL(url); }, 2000);
+            showToast("Excel downloaded for " + viewDate + ".");
+          } catch (e) {
+            showToast("Could not build the Excel file. Try the CSV export instead.");
+          }
+          btn.disabled = false;
+          btn.textContent = originalLabel;
+        });
+
+        $("clearDayBtn").addEventListener("click", function () {
+          var n = dayPasses(viewDate).length;
+          var q = dayQueue(viewDate).length;
+          if (n === 0 && q === 0) {
+            showToast("Nothing to clear for this day.");
+            return;
+          }
+          askConfirm(
+            "Clear this day?",
+            "This deletes " + n + (n === 1 ? " pass" : " passes") + (q ? " and " + q + " in the line" : "") +
+              " for " + fmtDateLabel(viewDate) + ", including signatures. There is no undo.",
+            "Yes, clear the day",
+            function () {
+              state.passes = state.passes.filter(function (p) { return p.date !== viewDate; });
+              state.queue = state.queue.filter(function (x) { return x.date !== viewDate; });
+              save();
+              renderAll();
+              showToast("Day cleared.");
+            }
+          );
+        });
+
+        /* ---------------- Settings ---------------- */
+        var setOneOut = $("setOneOut"), setQueue = $("setQueue"), setOver = $("setOverMinutes");
+        function syncSettingsUI() {
+          setOneOut.checked = state.settings.oneOut;
+          setQueue.checked = state.settings.queueEnabled;
+          setOver.value = String(state.settings.overMinutes);
+        }
+        $("settingsBtn").addEventListener("click", function () {
+          syncSettingsUI();
+          els.settingsOverlay.classList.add("show");
+        });
+        $("settingsCloseBtn").addEventListener("click", function () {
+          els.settingsOverlay.classList.remove("show");
+        });
+        setOneOut.addEventListener("change", function () {
+          state.settings.oneOut = setOneOut.checked;
+          save();
+          renderAll();
+        });
+        setQueue.addEventListener("change", function () {
+          state.settings.queueEnabled = setQueue.checked;
+          save();
+          renderAll();
+        });
+        setOver.addEventListener("change", function () {
+          state.settings.overMinutes = parseInt(setOver.value, 10) || 15;
+          save();
+          renderAll();
+        });
+
+        /* Close overlays by tapping the dim background */
+        [els.holdOverlay, els.confirmOverlay, els.settingsOverlay].forEach(function (ov) {
+          ov.addEventListener("click", function (e) {
+            if (e.target === ov) {
+              ov.classList.remove("show");
+              if (ov === els.holdOverlay) pendingAttempt = null;
+              if (ov === els.confirmOverlay) confirmAction = null;
+            }
+          });
+        });
+
+        /* Keep the pad crisp if the iPad rotates before anyone signs */
+        var resizeTimer = null;
+        window.addEventListener("resize", function () {
+          if (hasInk) return;
+          if (resizeTimer) clearTimeout(resizeTimer);
+          resizeTimer = setTimeout(sizeCanvas, 200);
+        });
+
+        renderAll();
+      })();
+    </script>
+  </body>
+</html>
