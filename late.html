@@ -331,11 +331,6 @@
             <div class="field-label" id="periodLabel">Your period</div>
             <div class="periods" id="periodPicker" role="group" aria-labelledby="periodLabel"></div>
 
-            <div class="field-label" id="reasonLabel">Reason for being late</div>
-            <input class="reason-input" id="reasonInput" type="text" autocomplete="off"
-                   placeholder="Bus, train, appointment&hellip;" aria-labelledby="reasonLabel" maxlength="120" />
-            <div class="reason-chips" id="reasonChips" role="group" aria-label="Common reasons"></div>
-
             <div class="station-actions">
               <button class="btn btn-primary" id="signInBtn" type="button">Sign in</button>
             </div>
@@ -349,6 +344,7 @@
             <p class="sub">Everyone who signed in late on the day you are viewing, newest first.</p>
             <div class="log-actions">
               <button class="btn" id="exportBtn" type="button">Export Excel</button>
+              <button class="btn" id="exportMonthBtn" type="button">Export Month</button>
               <button class="btn btn-danger" id="clearDayBtn" type="button">Clear this day</button>
             </div>
             <div class="period-summary" id="periodSummary"></div>
@@ -371,9 +367,6 @@
         <select class="edit-field" id="addPeriodSelect" aria-labelledby="addPeriodLabel"></select>
         <div class="edit-label">Time in</div>
         <input class="edit-field" id="addInInput" type="time" />
-        <div class="edit-label" id="addReasonLabel">Reason</div>
-        <select class="edit-field" id="addReasonSelect" aria-labelledby="addReasonLabel"></select>
-        <input class="edit-field" id="addReasonCustom" type="text" autocomplete="off" placeholder="Custom reason" maxlength="120" style="display:none" />
         <div class="edit-error" id="addError" role="alert"></div>
         <button class="btn btn-primary" id="addEntryBtn" type="button" style="width:100%;min-height:52px;font-weight:700;">Add entry</button>
         <div class="edit-section-title" id="editListTitle">Late entries for this day</div>
@@ -423,11 +416,10 @@
 
         var LS_KEY = "late-log-standalone-v1";
         var PERIODS = [2, 3, 6, 7, 8];
-        var REASON_PRESETS = ["Bus was late", "Train delay", "Overslept", "Doctor / dentist", "Family reason", "Gym Period Before", "Traffic", "Emergency"];
 
         /* ---------------- State ---------------- */
         function defaultState() {
-          return { entries: [] }; /* {id, date, period, sig, inAt, reason} */
+          return { entries: [] }; /* {id, date, period, sig, inAt, name?} */
         }
         var state = defaultState();
         try {
@@ -466,6 +458,13 @@
         function fmtDateLabel(key) {
           return parseKey(key).toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric", year: "numeric" });
         }
+        function fmtShortDate(key) {
+          return parseKey(key).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
+        }
+        function fmtMonthLabel(monthKey) {
+          var p = monthKey.split("-");
+          return new Date(parseInt(p[0], 10), parseInt(p[1], 10) - 1, 1).toLocaleDateString(undefined, { month: "long", year: "numeric" });
+        }
         function fmtTime(ts) {
           return new Date(ts).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
         }
@@ -481,7 +480,6 @@
         var els = {
           dateLabel: $("dateLabel"), todayTag: $("todayTag"), datePicker: $("datePicker"),
           pastBanner: $("pastBanner"), periodPicker: $("periodPicker"),
-          reasonInput: $("reasonInput"), reasonChips: $("reasonChips"),
           signInBtn: $("signInBtn"), formError: $("formError"),
           logHeading: $("logHeading"), lateCount: $("lateCount"),
           periodSummary: $("periodSummary"), logBody: $("logBody"),
@@ -524,30 +522,6 @@
             hideError();
           });
           els.periodPicker.appendChild(b);
-        });
-
-        /* ---------------- Reason chips ---------------- */
-        REASON_PRESETS.forEach(function (r) {
-          var b = document.createElement("button");
-          b.type = "button";
-          b.className = "chip";
-          b.textContent = r;
-          b.addEventListener("click", function () {
-            els.reasonInput.value = r;
-            markChip(r);
-            hideError();
-          });
-          els.reasonChips.appendChild(b);
-        });
-        function markChip(value) {
-          var chips = els.reasonChips.querySelectorAll(".chip");
-          for (var i = 0; i < chips.length; i++) {
-            chips[i].classList.toggle("selected", chips[i].textContent === value);
-          }
-        }
-        els.reasonInput.addEventListener("input", function () {
-          markChip(els.reasonInput.value.trim());
-          hideError();
         });
 
         /* ---------------- Signature pad (full-screen) ---------------- */
@@ -698,8 +672,6 @@
             btns[i].classList.remove("selected");
             btns[i].setAttribute("aria-pressed", "false");
           }
-          els.reasonInput.value = "";
-          markChip("");
           hideError();
         }
 
@@ -707,22 +679,17 @@
           if (!isViewingToday()) { showError("You are viewing another day. Tap Today to sign in."); return; }
           if (!savedSig) { showError("Tap the box and sign your name first."); return; }
           if (!selectedPeriod) { showError("Pick your period."); return; }
-          var reason = els.reasonInput.value.trim();
-          if (!reason) { showError("Add a reason for being late."); els.reasonInput.focus(); return; }
           hideError();
           var now = Date.now();
           var periodUsed = selectedPeriod;
           state.entries.push({
             id: uid(), date: todayKey(), period: periodUsed,
-            sig: savedSig, inAt: now, reason: reason
+            sig: savedSig, inAt: now
           });
           save();
           resetStation();
           renderAll();
           showToast("Signed in late — Period " + periodUsed + ", " + fmtTime(now) + ".");
-        });
-        els.reasonInput.addEventListener("keydown", function (e) {
-          if (e.key === "Enter") { e.preventDefault(); els.signInBtn.click(); }
         });
 
         /* ---------------- Confirm dialog ---------------- */
@@ -806,10 +773,6 @@
             top.appendChild(per);
             top.appendChild(time);
             info.appendChild(top);
-            var reason = document.createElement("div");
-            reason.className = "entry-reason";
-            reason.textContent = e.reason;
-            info.appendChild(reason);
             card.appendChild(info);
 
             var del = document.createElement("button");
@@ -820,7 +783,7 @@
             del.addEventListener("click", function () {
               askConfirm(
                 "Delete this entry?",
-                "Period " + e.period + ", in at " + fmtTime(e.inAt) + " — " + e.reason + ". This removes the entry" + (e.sig ? " and its signature" : "") + " from the log. There is no undo.",
+                "Period " + e.period + ", in at " + fmtTime(e.inAt) + ". This removes the entry" + (e.sig ? " and its signature" : "") + " from the log. There is no undo.",
                 "Yes, delete it",
                 e.sig,
                 function () {
@@ -901,10 +864,13 @@
         /* ================================================================
            Excel export — a real .xlsx built entirely on this device.
            One worksheet per period; the Name cell holds the student's
-           signature image. Columns: Name | Time In | Reason.
-           No library and no network: the file is a zip of XML parts,
-           assembled below with stored (uncompressed) entries.
+           signature image. Columns come from the `cols` argument:
+           [{field, header, width}] — the field named "name" carries
+           the signature image. No library and no network: the file is
+           a zip of XML parts, assembled below with stored
+           (uncompressed) entries.
            ================================================================ */
+        function colLetter(i) { return String.fromCharCode(65 + i); }
         function xmlEscape(s) {
           return String(s)
             .replace(/&/g, "&amp;")
@@ -1004,8 +970,10 @@
         }
 
         var PX_EMU = 9525; /* EMU per CSS pixel */
-        function buildWorkbook(dayKey, groups) {
-          /* groups: [{period, rows:[{sigBytes, w, h, timeIn, reason}]}] */
+        function buildWorkbook(dayKey, groups, cols) {
+          /* groups: [{period, rows:[{sigBytes, sigSrc, name, ...fields}]}] */
+          var nameCol = 0;
+          cols.forEach(function (c, i) { if (c.field === "name") nameCol = i; });
           return Promise.all(groups.map(function (g) {
             return Promise.all(g.rows.map(function (r) { return loadImageSize(r.sigSrc); }));
           })).then(function (allSizes) {
@@ -1079,21 +1047,26 @@
             groups.forEach(function (g, gi) {
               var sheetNum = gi + 1;
               var sizes = allSizes[gi];
-              var rowsXml =
-                '<row r="1" ht="20" customHeight="1">' +
-                '<c r="A1" t="inlineStr" s="1"><is><t>Name</t></is></c>' +
-                '<c r="B1" t="inlineStr" s="1"><is><t>Time In</t></is></c>' +
-                '<c r="C1" t="inlineStr" s="1"><is><t>Reason</t></is></c></row>';
+              var headerCells = "";
+              cols.forEach(function (c, ci) {
+                headerCells += '<c r="' + colLetter(ci) + '1" t="inlineStr" s="1"><is><t>' + xmlEscape(c.header) + "</t></is></c>";
+              });
+              var rowsXml = '<row r="1" ht="20" customHeight="1">' + headerCells + "</row>";
               var anchorsXml = "";
               var drawingRels = "";
 
               g.rows.forEach(function (r, ri) {
                 var rowNum = ri + 2; /* sheet row (1-based); row 1 is the header */
-                rowsXml +=
-                  '<row r="' + rowNum + '" ht="58" customHeight="1">' +
-                  (r.name ? '<c r="A' + rowNum + '" t="inlineStr"><is><t>' + xmlEscape(r.name) + "</t></is></c>" : '<c r="A' + rowNum + '"/>') +
-                  '<c r="B' + rowNum + '" t="inlineStr"><is><t>' + xmlEscape(r.timeIn) + "</t></is></c>" +
-                  '<c r="C' + rowNum + '" t="inlineStr"><is><t>' + xmlEscape(r.reason) + "</t></is></c></row>";
+                var cellsXml = "";
+                cols.forEach(function (c, ci) {
+                  var v = r[c.field];
+                  if (c.field === "name") {
+                    cellsXml += v ? '<c r="' + colLetter(ci) + rowNum + '" t="inlineStr"><is><t>' + xmlEscape(v) + "</t></is></c>" : '<c r="' + colLetter(ci) + rowNum + '"/>';
+                  } else {
+                    cellsXml += '<c r="' + colLetter(ci) + rowNum + '" t="inlineStr"><is><t>' + xmlEscape(v == null ? "" : v) + "</t></is></c>";
+                  }
+                });
+                rowsXml += '<row r="' + rowNum + '" ht="58" customHeight="1">' + cellsXml + "</row>";
 
                 var size = sizes[ri];
                 if (size && r.sigBytes) {
@@ -1106,7 +1079,7 @@
                   drawingRels += '<Relationship Id="rId' + mediaCount + '" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="../media/image' + mediaCount + '.png"/>';
                   anchorsXml +=
                     "<xdr:oneCellAnchor>" +
-                    "<xdr:from><xdr:col>0</xdr:col><xdr:colOff>" + (2 * PX_EMU) + "</xdr:colOff>" +
+                    "<xdr:from><xdr:col>" + nameCol + "</xdr:col><xdr:colOff>" + (2 * PX_EMU) + "</xdr:colOff>" +
                     "<xdr:row>" + (rowNum - 1) + "</xdr:row><xdr:rowOff>" + (3 * PX_EMU) + "</xdr:rowOff></xdr:from>" +
                     "<xdr:ext cx=\"" + cx + "\" cy=\"" + cy + "\"/>" +
                     "<xdr:pic><xdr:nvPicPr><xdr:cNvPr id=\"" + (mediaCount + 1) + "\" name=\"Signature " + mediaCount + "\"/>" +
@@ -1117,13 +1090,18 @@
                 }
               });
 
+              var colsXml = "<cols>";
+              cols.forEach(function (c, ci) {
+                colsXml += '<col min="' + (ci + 1) + '" max="' + (ci + 1) + '" width="' + c.width + '" customWidth="1"/>';
+              });
+              colsXml += "</cols>";
               files.push({
                 name: "xl/worksheets/sheet" + sheetNum + ".xml",
                 data: utf8Bytes(
                   '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
                   '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">' +
                   '<sheetViews><sheetView workbookViewId="0"><selection activeCell="A1" sqref="A1"/></sheetView></sheetViews>' +
-                  '<cols><col min="1" max="1" width="30" customWidth="1"/><col min="2" max="2" width="14" customWidth="1"/><col min="3" max="3" width="48" customWidth="1"/></cols>' +
+                  colsXml +
                   "<sheetData>" + rowsXml + "</sheetData>" +
                   '<drawing r:id="rId1"/></worksheet>'
                 )
@@ -1172,12 +1150,12 @@
               .map(function (e) {
                 var bytes = null;
                 try { bytes = dataURLBytes(e.sig); } catch (err) { bytes = null; }
-                return { sigSrc: e.sig, sigBytes: bytes, name: e.name || "", timeIn: fmtTime(e.inAt), reason: e.reason };
+                return { sigSrc: e.sig, sigBytes: bytes, name: e.name || "", timeIn: fmtTime(e.inAt) };
               });
             if (rows.length > 0) groups.push({ period: p, rows: rows });
           });
           showToast("Building the Excel file…");
-          buildWorkbook(viewDate, groups).then(function (blob) {
+          buildWorkbook(viewDate, groups, [{ field: "name", header: "Name", width: 30 }, { field: "timeIn", header: "Time In", width: 14 }]).then(function (blob) {
             var url = URL.createObjectURL(blob);
             var a = document.createElement("a");
             a.href = url;
@@ -1187,6 +1165,41 @@
             document.body.removeChild(a);
             setTimeout(function () { URL.revokeObjectURL(url); }, 4000);
             showToast("Excel file saved as " + viewDate + ".xlsx");
+          }).catch(function () {
+            showToast("The Excel file could not be built on this device.");
+          });
+        });
+
+        $("exportMonthBtn").addEventListener("click", function () {
+          var monthKey = viewDate.slice(0, 7);
+          var entries = state.entries.filter(function (e) { return e.date.slice(0, 7) === monthKey; });
+          if (entries.length === 0) {
+            showToast("No late entries to export for this month.");
+            return;
+          }
+          var groups = [];
+          PERIODS.forEach(function (p) {
+            var rows = entries
+              .filter(function (e) { return e.period === p; })
+              .sort(function (a, b) { return a.inAt - b.inAt; })
+              .map(function (e) {
+                var bytes = null;
+                try { bytes = dataURLBytes(e.sig); } catch (err) { bytes = null; }
+                return { sigSrc: e.sig, sigBytes: bytes, date: fmtShortDate(e.date), name: e.name || "", timeIn: fmtTime(e.inAt) };
+              });
+            if (rows.length > 0) groups.push({ period: p, rows: rows });
+          });
+          showToast("Building the month Excel file…");
+          buildWorkbook(monthKey, groups, [{ field: "date", header: "Date", width: 14 }, { field: "name", header: "Name", width: 30 }, { field: "timeIn", header: "Time In", width: 14 }]).then(function (blob) {
+            var url = URL.createObjectURL(blob);
+            var a = document.createElement("a");
+            a.href = url;
+            a.download = monthKey + ".xlsx";
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            setTimeout(function () { URL.revokeObjectURL(url); }, 4000);
+            showToast("Excel file saved for " + fmtMonthLabel(monthKey) + ".");
           }).catch(function () {
             showToast("The Excel file could not be built on this device.");
           });
@@ -1228,31 +1241,10 @@
           o.textContent = "Period " + p;
           $("addPeriodSelect").appendChild(o);
         });
-        var REASON_OTHER = "__other";
-        REASON_PRESETS.forEach(function (r) {
-          var o = document.createElement("option");
-          o.value = r;
-          o.textContent = r;
-          $("addReasonSelect").appendChild(o);
-        });
-        var otherOpt = document.createElement("option");
-        otherOpt.value = REASON_OTHER;
-        otherOpt.textContent = "Other (type your own)";
-        $("addReasonSelect").appendChild(otherOpt);
-        $("addReasonSelect").addEventListener("change", function () {
-          $("addReasonCustom").style.display = $("addReasonSelect").value === REASON_OTHER ? "" : "none";
-        });
-        function reasonFrom(selectEl, customEl) {
-          if (selectEl.value === REASON_OTHER) return customEl.value.trim();
-          return selectEl.value;
-        }
         function openEdit() {
           $("addNameInput").value = "";
           $("addPeriodSelect").value = selectedPeriod ? String(selectedPeriod) : String(PERIODS[0]);
           $("addInInput").value = nowTimeInput();
-          $("addReasonSelect").value = REASON_PRESETS[0];
-          $("addReasonCustom").value = "";
-          $("addReasonCustom").style.display = "none";
           $("addError").classList.remove("show");
           $("editListTitle").textContent = "Late entries for " + fmtDateLabel(viewDate);
           renderEditList();
@@ -1267,13 +1259,11 @@
           var name = $("addNameInput").value.trim();
           var period = parseInt($("addPeriodSelect").value, 10);
           var inAt = timeInputToTs($("addInInput").value);
-          var reason = reasonFrom($("addReasonSelect"), $("addReasonCustom"));
           var err = $("addError");
           err.classList.remove("show");
           if (!name) { err.textContent = "Type the student's name."; err.classList.add("show"); $("addNameInput").focus(); return; }
           if (!inAt) { err.textContent = "Pick a time in."; err.classList.add("show"); return; }
-          if (!reason) { err.textContent = "Add a reason for being late."; err.classList.add("show"); return; }
-          state.entries.push({ id: uid(), date: viewDate, period: period, sig: null, name: name, inAt: inAt, reason: reason });
+          state.entries.push({ id: uid(), date: viewDate, period: period, sig: null, name: name, inAt: inAt });
           save();
           renderAll();
           renderEditList();
@@ -1305,7 +1295,7 @@
             nm.textContent = displayName(e);
             var tm = document.createElement("div");
             tm.className = "edit-row-times";
-            tm.textContent = "Period " + e.period + " · In at " + fmtTime(e.inAt) + " · " + e.reason;
+            tm.textContent = "Period " + e.period + " · In at " + fmtTime(e.inAt);
             meta.appendChild(nm);
             meta.appendChild(tm);
             top.appendChild(meta);
@@ -1318,34 +1308,6 @@
             row.appendChild(top);
             list.appendChild(row);
           });
-        }
-        function buildReasonSelect(currentReason) {
-          var sel = document.createElement("select");
-          sel.className = "edit-field";
-          var isPreset = REASON_PRESETS.indexOf(currentReason) >= 0;
-          REASON_PRESETS.forEach(function (r) {
-            var o = document.createElement("option");
-            o.value = r;
-            o.textContent = r;
-            if (r === currentReason) o.selected = true;
-            sel.appendChild(o);
-          });
-          var other = document.createElement("option");
-          other.value = REASON_OTHER;
-          other.textContent = "Other (type your own)";
-          if (!isPreset) other.selected = true;
-          sel.appendChild(other);
-          var custom = document.createElement("input");
-          custom.className = "edit-field";
-          custom.type = "text";
-          custom.placeholder = "Custom reason";
-          custom.maxLength = 120;
-          custom.value = isPreset ? "" : currentReason;
-          custom.style.display = isPreset ? "none" : "";
-          sel.addEventListener("change", function () {
-            custom.style.display = sel.value === REASON_OTHER ? "" : "none";
-          });
-          return { sel: sel, custom: custom };
         }
         function openEntryEdit(row, e) {
           row.innerHTML = "";
@@ -1378,13 +1340,6 @@
           inInput.type = "time";
           inInput.value = tsToTimeInput(e.inAt);
           form.appendChild(inInput);
-          var reasonLabel = document.createElement("div");
-          reasonLabel.className = "edit-label";
-          reasonLabel.textContent = "Reason";
-          form.appendChild(reasonLabel);
-          var reasonParts = buildReasonSelect(e.reason);
-          form.appendChild(reasonParts.sel);
-          form.appendChild(reasonParts.custom);
           var err = document.createElement("div");
           err.className = "edit-error";
           err.setAttribute("role", "alert");
@@ -1397,17 +1352,14 @@
           saveBtn.textContent = "Save";
           saveBtn.addEventListener("click", function () {
             var inAt = timeInputToTs(inInput.value);
-            var reason = reasonFrom(reasonParts.sel, reasonParts.custom);
             err.classList.remove("show");
             if (!inAt) { err.textContent = "Pick a time in."; err.classList.add("show"); return; }
-            if (!reason) { err.textContent = "Add a reason for being late."; err.classList.add("show"); return; }
             if (nameInput) {
               var nm = nameInput.value.trim();
               if (!nm) { err.textContent = "Type the student's name."; err.classList.add("show"); return; }
               e.name = nm;
             }
             e.inAt = inAt;
-            e.reason = reason;
             save();
             renderAll();
             renderEditList();
